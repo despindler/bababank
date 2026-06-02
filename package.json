@@ -1,0 +1,25 @@
+{
+  "name": "bababank",
+  "version": "1.0.0",
+  "description": "Ba Ba Bank is a small German-language web application for tracking family bank accounts. It lets children see their account balance and transaction history, while a boss/admin user can register customers, record deposits and payouts, and soft-delete transaction entries.",
+  "scripts": {
+    "dev:test": "node tools/php-dev-server.js",
+    "test": "playwright test",
+    "test:headed": "playwright test --headed"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/despindler/bababank.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/despindler/bababank/issues"
+  },
+  "homepage": "https://github.com/despindler/bababank#readme",
+  "devDependencies": {
+    "@playwright/test": "^1.60.0"
+  }
+}

@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="de">
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+		<title>Ba Ba Bank Boss</title>
+		<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
+		<link rel="stylesheet" href="../styles.css">
+	</head>
+	<body data-page="boss" data-api-base="../backend">
+		<div class="app-shell">
+			<nav class="navbar navbar-expand-lg sticky-top">
+				<div class="container-fluid">
+					<a class="navbar-brand d-flex align-items-center gap-2 fw-semibold" href="../">
+						<span class="brand-mark"><i class="bi bi-bank2" aria-hidden="true"></i></span>
+						<span>Ba Ba Bank</span>
+					</a>
+					<div id="boss-app-nav" class="is-hidden d-flex align-items-center gap-2">
+						<span id="boss-name" class="text-secondary small d-none d-sm-inline"></span>
+						<button id="boss-logout-button" type="button" class="btn btn-outline-secondary icon-button" title="Abmelden">
+							<i class="bi bi-box-arrow-right" aria-hidden="true"></i>
+						</button>
+					</div>
+				</div>
+			</nav>
+
+			<main class="app-main container py-4 py-lg-5">
+				<section id="boss-login" class="auth-panel mx-auto surface p-4 p-sm-5">
+					<div class="d-flex align-items-center gap-3 mb-4">
+						<span class="brand-mark"><i class="bi bi-person-lock" aria-hidden="true"></i></span>
+						<div>
+							<h1 class="h4 mb-1">Boss anmelden</h1>
+							<p class="text-secondary mb-0">Verwaltung der Familienkonten.</p>
+						</div>
+					</div>
+
+					<form id="boss-login-form" class="vstack gap-3">
+						<div class="form-floating">
+							<input id="boss-username" name="username" type="text" class="form-control" autocomplete="username" placeholder="Benutzername" required>
+							<label for="boss-username">Benutzername</label>
+						</div>
+						<div class="form-floating">
+							<input id="boss-password" name="userpassword" type="password" class="form-control" autocomplete="current-password" placeholder="Passwort" required>
+							<label for="boss-password">Passwort</label>
+						</div>
+						<button type="submit" class="btn btn-primary d-inline-flex align-items-center justify-content-center gap-2">
+							<i class="bi bi-box-arrow-in-right" aria-hidden="true"></i>
+							<span>Anmelden</span>
+						</button>
+						<div id="google-login" class="is-hidden d-flex justify-content-center"></div>
+						<p id="boss-login-status" class="text-danger small mb-0" role="status"></p>
+					</form>
+				</section>
+
+				<section id="boss-app" class="is-hidden">
+					<div class="d-flex flex-column flex-lg-row align-items-lg-end justify-content-between gap-3 mb-4">
+						<div>
+							<p class="text-secondary text-uppercase fw-semibold small mb-1">Boss</p>
+							<h1 class="h2 mb-0">Konten verwalten</h1>
+						</div>
+					</div>
+
+					<div class="row g-3 mb-4">
+						<div class="col-12 col-lg-4">
+							<section class="surface p-3 p-sm-4 h-100">
+								<div class="d-flex align-items-center gap-2 mb-3">
+									<i class="bi bi-box-arrow-in-down-right text-success" aria-hidden="true"></i>
+									<h2 class="h5 mb-0">Einzahlen</h2>
+								</div>
+								<form id="deposit-form" class="vstack gap-3">
+									<div class="form-floating">
+										<select id="deposit-customer" name="customer" class="form-select" required>
+											<option selected disabled value="">Kunde waehlen</option>
+										</select>
+										<label for="deposit-customer">Kunde</label>
+									</div>
+									<div class="form-floating">
+										<input id="deposit-value" name="value" type="number" min="0.01" step="0.01" class="form-control" placeholder="10.50" required>
+										<label for="deposit-value">Betrag</label>
+									</div>
+									<button type="submit" class="btn btn-outline-primary d-inline-flex align-items-center justify-content-center gap-2">
+										<i class="bi bi-plus-lg" aria-hidden="true"></i>
+										<span>Speichern</span>
+									</button>
+								</form>
+							</section>
+						</div>
+
+						<div class="col-12 col-lg-4">
+							<section class="surface p-3 p-sm-4 h-100">
+								<div class="d-flex align-items-center gap-2 mb-3">
+									<i class="bi bi-box-arrow-up-right text-danger" aria-hidden="true"></i>
+									<h2 class="h5 mb-0">Auszahlen</h2>
+								</div>
+								<form id="payout-form" class="vstack gap-3">
+									<div class="form-floating">
+										<select id="payout-customer" name="customer" class="form-select" required>
+											<option selected disabled value="">Kunde waehlen</option>
+										</select>
+										<label for="payout-customer">Kunde</label>
+									</div>
+									<div class="form-floating">
+										<input id="payout-value" name="value" type="number" min="0.01" step="0.01" class="form-control" placeholder="10.50" required>
+										<label for="payout-value">Betrag</label>
+									</div>
+									<button type="submit" class="btn btn-outline-primary d-inline-flex align-items-center justify-content-center gap-2">
+										<i class="bi bi-dash-lg" aria-hidden="true"></i>
+										<span>Speichern</span>
+									</button>
+								</form>
+							</section>
+						</div>
+
+						<div class="col-12 col-lg-4">
+							<section class="surface p-3 p-sm-4 h-100">
+								<div class="d-flex align-items-center gap-2 mb-3">
+									<i class="bi bi-person-plus text-primary" aria-hidden="true"></i>
+									<h2 class="h5 mb-0">Kunde</h2>
+								</div>
+								<form id="create-customer-form" class="vstack gap-3">
+									<div class="form-floating">
+										<input id="new-fullname" name="fullname" type="text" class="form-control" placeholder="Vor- und Nachname" required>
+										<label for="new-fullname">Vor- und Nachname</label>
+									</div>
+									<div class="form-floating">
+										<input id="new-username" name="username" type="text" class="form-control" autocomplete="off" placeholder="Benutzername" required>
+										<label for="new-username">Benutzername</label>
+									</div>
+									<div class="form-floating">
+										<input id="new-password" name="userpassword" type="text" class="form-control" autocomplete="off" placeholder="Passwort" required>
+										<label for="new-password">Passwort</label>
+									</div>
+									<div class="form-floating">
+										<input id="new-email" name="email" type="email" class="form-control" autocomplete="off" placeholder="name@example.com">
+										<label for="new-email">Google E-Mail</label>
+									</div>
+									<button type="submit" class="btn btn-outline-primary d-inline-flex align-items-center justify-content-center gap-2">
+										<i class="bi bi-person-plus" aria-hidden="true"></i>
+										<span>Erstellen</span>
+									</button>
+								</form>
+							</section>
+						</div>
+					</div>
+
+					<section class="surface p-3 p-sm-4">
+						<div class="d-flex align-items-center justify-content-between gap-3 mb-3">
+							<div>
+								<h2 class="h5 mb-1">Transaktionen</h2>
+								<p class="text-secondary mb-0">Aktuelle Bewegungen aller Kunden.</p>
+							</div>
+							<i class="bi bi-receipt text-secondary fs-4" aria-hidden="true"></i>
+						</div>
+						<div class="table-responsive">
+							<table class="table table-striped align-middle mb-0">
+								<thead>
+									<tr>
+										<th scope="col">Kunde</th>
+										<th scope="col">Wann</th>
+										<th scope="col"><i class="bi bi-plus-slash-minus" aria-hidden="true"></i></th>
+										<th scope="col">Betrag</th>
+										<th scope="col">Vermoegen</th>
+										<th scope="col">Loeschen</th>
+									</tr>
+								</thead>
+								<tbody id="boss-transactions-body"></tbody>
+							</table>
+						</div>
+					</section>
+				</section>
+			</main>
+		</div>
+
+		<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
+		<script src="../app.js"></script>
+	</body>
+</html>
