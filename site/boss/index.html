@@ -147,30 +147,52 @@
 						</div>
 					</div>
 
-					<section class="surface p-3 p-sm-4">
-						<div class="d-flex align-items-center justify-content-between gap-3 mb-3">
-							<div>
-								<h2 class="h5 mb-1">Transaktionen</h2>
-								<p class="text-secondary mb-0">Aktuelle Bewegungen aller Kunden.</p>
+					<div class="accordion transaction-accordion" id="boss-transactions-accordion">
+						<section class="accordion-item surface">
+							<h2 class="accordion-header" id="boss-transactions-heading">
+								<button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#boss-transactions-panel" aria-expanded="false" aria-controls="boss-transactions-panel">
+									<span class="d-flex align-items-center gap-3">
+										<i class="bi bi-receipt text-secondary fs-4" aria-hidden="true"></i>
+										<span>
+											<span class="d-block h5 mb-1">Transaktionen</span>
+											<span class="d-block text-secondary fw-normal small">Aktuelle Bewegungen aller Kunden.</span>
+										</span>
+									</span>
+								</button>
+							</h2>
+							<div id="boss-transactions-panel" class="accordion-collapse collapse" aria-labelledby="boss-transactions-heading">
+								<div class="accordion-body p-0">
+									<div class="table-responsive">
+										<table class="table table-striped align-middle mb-0">
+											<thead>
+												<tr>
+													<th scope="col">
+														<span class="sortable-header">Kunde <button type="button" class="sort-button" data-sort-table="boss" data-sort-key="fullname" aria-label="Nach Kunde sortieren"><i class="bi bi-arrow-down-up" aria-hidden="true"></i></button></span>
+													</th>
+													<th scope="col">
+														<span class="sortable-header">Wann <button type="button" class="sort-button" data-sort-table="boss" data-sort-key="datetime" aria-label="Nach Wann sortieren"><i class="bi bi-arrow-down-up" aria-hidden="true"></i></button></span>
+													</th>
+													<th scope="col">
+														<span class="sortable-header"><i class="bi bi-plus-slash-minus" aria-hidden="true"></i><button type="button" class="sort-button" data-sort-table="boss" data-sort-key="type" aria-label="Nach Typ sortieren"><i class="bi bi-arrow-down-up" aria-hidden="true"></i></button></span>
+													</th>
+													<th scope="col">
+														<span class="sortable-header">Betrag <button type="button" class="sort-button" data-sort-table="boss" data-sort-key="amount" aria-label="Nach Betrag sortieren"><i class="bi bi-arrow-down-up" aria-hidden="true"></i></button></span>
+													</th>
+													<th scope="col">
+														<span class="sortable-header">Vermoegen <button type="button" class="sort-button" data-sort-table="boss" data-sort-key="balance" aria-label="Nach Vermoegen sortieren"><i class="bi bi-arrow-down-up" aria-hidden="true"></i></button></span>
+													</th>
+													<th scope="col">
+														<span class="sortable-header">Loeschen <button type="button" class="sort-button" data-sort-table="boss" data-sort-key="id" aria-label="Nach Loeschen sortieren"><i class="bi bi-arrow-down-up" aria-hidden="true"></i></button></span>
+													</th>
+												</tr>
+											</thead>
+											<tbody id="boss-transactions-body"></tbody>
+										</table>
+									</div>
+								</div>
 							</div>
-							<i class="bi bi-receipt text-secondary fs-4" aria-hidden="true"></i>
-						</div>
-						<div class="table-responsive">
-							<table class="table table-striped align-middle mb-0">
-								<thead>
-									<tr>
-										<th scope="col">Kunde</th>
-										<th scope="col">Wann</th>
-										<th scope="col"><i class="bi bi-plus-slash-minus" aria-hidden="true"></i></th>
-										<th scope="col">Betrag</th>
-										<th scope="col">Vermoegen</th>
-										<th scope="col">Loeschen</th>
-									</tr>
-								</thead>
-								<tbody id="boss-transactions-body"></tbody>
-							</table>
-						</div>
-					</section>
+						</section>
+					</div>
 				</section>
 			</main>
 		</div>

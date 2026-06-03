@@ -83,23 +83,41 @@
 						</div>
 					</div>
 
-					<div class="surface p-0 overflow-hidden">
-						<div class="p-3 p-md-4 border-bottom d-flex align-items-center justify-content-between gap-3">
-							<h2 class="h5 mb-0">Transaktionen</h2>
-							<i class="bi bi-receipt text-secondary fs-4" aria-hidden="true"></i>
-						</div>
-						<div class="table-responsive">
-							<table class="table table-striped mb-0">
-								<thead>
-									<tr>
-										<th>Wann</th>
-										<th>Typ</th>
-										<th>Betrag</th>
-										<th>Saldo</th>
-									</tr>
-								</thead>
-								<tbody id="transactions-body"></tbody>
-							</table>
+					<div class="accordion transaction-accordion" id="customer-transactions-accordion">
+						<div class="accordion-item surface">
+							<h2 class="accordion-header" id="customer-transactions-heading">
+								<button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#customer-transactions-panel" aria-expanded="false" aria-controls="customer-transactions-panel">
+									<span class="d-flex align-items-center gap-2">
+										<i class="bi bi-receipt text-secondary fs-4" aria-hidden="true"></i>
+										<span>Transaktionen</span>
+									</span>
+								</button>
+							</h2>
+							<div id="customer-transactions-panel" class="accordion-collapse collapse" aria-labelledby="customer-transactions-heading">
+								<div class="accordion-body p-0">
+									<div class="table-responsive">
+										<table class="table table-striped mb-0">
+											<thead>
+												<tr>
+													<th scope="col">
+														<span class="sortable-header">Wann <button type="button" class="sort-button" data-sort-table="customer" data-sort-key="datetime" aria-label="Nach Wann sortieren"><i class="bi bi-arrow-down-up" aria-hidden="true"></i></button></span>
+													</th>
+													<th scope="col">
+														<span class="sortable-header">Typ <button type="button" class="sort-button" data-sort-table="customer" data-sort-key="type" aria-label="Nach Typ sortieren"><i class="bi bi-arrow-down-up" aria-hidden="true"></i></button></span>
+													</th>
+													<th scope="col">
+														<span class="sortable-header">Betrag <button type="button" class="sort-button" data-sort-table="customer" data-sort-key="amount" aria-label="Nach Betrag sortieren"><i class="bi bi-arrow-down-up" aria-hidden="true"></i></button></span>
+													</th>
+													<th scope="col">
+														<span class="sortable-header">Saldo <button type="button" class="sort-button" data-sort-table="customer" data-sort-key="balance" aria-label="Nach Saldo sortieren"><i class="bi bi-arrow-down-up" aria-hidden="true"></i></button></span>
+													</th>
+												</tr>
+											</thead>
+											<tbody id="transactions-body"></tbody>
+										</table>
+									</div>
+								</div>
+							</div>
 						</div>
 					</div>
 				</section>

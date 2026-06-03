@@ -97,6 +97,8 @@ test("shows the same latest saldo in the transaction table as the balance card",
 	await loginCustomer(page);
 
 	await expect(page.locator("#kpi-balance")).toHaveText("199.60");
+	await page.locator("#customer-transactions-heading .accordion-button").click();
+	await expect(page.locator("#customer-transactions-panel")).toBeVisible();
 	await expect(page.locator("#transactions-body tr").first().getByRole("rowheader")).toHaveText("199.60");
 });
 

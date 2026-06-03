@@ -1,5 +1,11 @@
 const Bank = (() => {
 	let currentUser = null;
+	let customerTransactions = [];
+	let bossTransactions = [];
+	const transactionSort = {
+		customer: { key: "datetime", direction: "desc" },
+		boss: { key: "datetime", direction: "desc" },
+	};
 
 	function apiBase() {
 		return document.body.dataset.apiBase || "backend";
@@ -113,6 +119,63 @@ const Bank = (() => {
 
 	function formData(form) {
 		return Object.fromEntries(new FormData(form).entries());
+	}
+
+	function sortValue(item, key) {
+		if (key === "amount" || key === "balance" || key === "id") {
+			return Number(item[key] || 0);
+		}
+		if (key === "type") {
+			return Number(item.amount || 0) < 0 ? 0 : 1;
+		}
+		return String(item[key] || "").toLocaleLowerCase("de-CH");
+	}
+
+	function sortedTransactions(items, table) {
+		const sort = transactionSort[table];
+		const direction = sort.direction === "asc" ? 1 : -1;
+		return items
+			.map((item, index) => ({ item, index }))
+			.sort((left, right) => {
+				const leftValue = sortValue(left.item, sort.key);
+				const rightValue = sortValue(right.item, sort.key);
+				let result = 0;
+				if (typeof leftValue === "number" && typeof rightValue === "number") {
+					result = leftValue - rightValue;
+				} else {
+					result = String(leftValue).localeCompare(String(rightValue), "de-CH", {
+						numeric: true,
+						sensitivity: "base",
+					});
+				}
+				return result === 0 ? left.index - right.index : result * direction;
+			})
+			.map(({ item }) => item);
+	}
+
+	function initSortControls(table, render) {
+		qsa(`[data-sort-table="${table}"]`).forEach((button) => {
+			button.addEventListener("click", () => {
+				const key = button.dataset.sortKey;
+				if (transactionSort[table].key === key) {
+					transactionSort[table].direction = transactionSort[table].direction === "asc" ? "desc" : "asc";
+				} else {
+					transactionSort[table] = { key, direction: "asc" };
+				}
+				render();
+			});
+		});
+		updateSortButtons(table);
+	}
+
+	function updateSortButtons(table) {
+		const sort = transactionSort[table];
+		qsa(`[data-sort-table="${table}"]`).forEach((button) => {
+			const active = button.dataset.sortKey === sort.key;
+			button.classList.toggle("is-active", active);
+			button.setAttribute("aria-pressed", active ? "true" : "false");
+			button.innerHTML = icon(active ? (sort.direction === "asc" ? "sort-up" : "sort-down") : "arrow-down-up");
+		});
 	}
 
 	async function me() {
@@ -244,6 +307,7 @@ const Bank = (() => {
 			setText("#customer-name", user.fullname);
 			show("#customer-app-nav");
 			show("#customer-app");
+			initSortControls("customer", renderCustomerTransactions);
 			await Promise.all([loadCustomerKpis(), loadCustomerTransactions()]);
 		} catch (error) {
 			show("#signed-out");
@@ -271,13 +335,19 @@ const Bank = (() => {
 
 	async function loadCustomerTransactions() {
 		const payload = await api("/customers/me/transactions");
+		customerTransactions = payload.result;
+		renderCustomerTransactions();
+	}
+
+	function renderCustomerTransactions() {
 		const body = qs("#transactions-body");
 		body.innerHTML = "";
-		if (!payload.result.length) {
+		updateSortButtons("customer");
+		if (!customerTransactions.length) {
 			body.innerHTML = `<tr><td colspan="4" class="text-center text-secondary py-4">Keine Transaktionen</td></tr>`;
 			return;
 		}
-		for (const item of payload.result) {
+		for (const item of sortedTransactions(customerTransactions, "customer")) {
 			const amount = Number(item.amount);
 			const row = document.createElement("tr");
 			row.innerHTML = `
@@ -360,6 +430,7 @@ const Bank = (() => {
 		show("#boss-app-nav");
 		show("#boss-app");
 		setText("#boss-name", user.fullname);
+		initSortControls("boss", renderBossTransactions);
 		await Promise.all([loadBossCustomers(), loadBossTransactions()]);
 	}
 
@@ -379,13 +450,19 @@ const Bank = (() => {
 
 	async function loadBossTransactions() {
 		const payload = await api("/transactions");
+		bossTransactions = payload.result;
+		renderBossTransactions();
+	}
+
+	function renderBossTransactions() {
 		const body = qs("#boss-transactions-body");
 		body.innerHTML = "";
-		if (!payload.result.length) {
+		updateSortButtons("boss");
+		if (!bossTransactions.length) {
 			body.innerHTML = `<tr><td colspan="6" class="text-center text-secondary py-4">Keine Transaktionen</td></tr>`;
 			return;
 		}
-		for (const item of payload.result) {
+		for (const item of sortedTransactions(bossTransactions, "boss")) {
 			const amount = Number(item.amount);
 			const row = document.createElement("tr");
 			row.innerHTML = `
