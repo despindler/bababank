@@ -17,7 +17,9 @@ The app is a plain PHP and plain JavaScript site:
 - `site/backend/backend.php` defines the JSON API routes.
 - `site/backend/database.php` contains the PDO-based MySQL/MariaDB access functions.
 - `site/backend/google_auth.php` verifies Google Identity Services ID tokens server-side.
+- `site/backend/rewards.php` contains the configurable reward and interest logic.
 - `site/backend/flight/` is a vendored copy of the Flight PHP micro-framework.
+- `site/assets/rewards/` contains the customer reward chest images used by the dashboard modal.
 - `site/router.php` is a local development router for the PHP built-in server.
 - `site/config.php` loads database configuration from environment variables or `.env` files.
 - `database/e93ud_bank.sql` is the live database dump.
@@ -44,6 +46,7 @@ Customer flow:
    - a piggy-bank count based on one pig per 100 balance units
    - number of incoming and outgoing approved transactions
    - transaction history
+   - daily reward chests for new deposits, savings milestones, input/withdrawal achievements, and monthly interest
 5. The customer can open a Twint/WhatsApp payment request link.
 
 Boss/admin flow:
@@ -75,8 +78,13 @@ Tables:
   - linked to `customers.id`
 - `transactions`
   - account movements
-  - important columns: `id`, `customer`, `datetime`, `amount`, `balance`, `approved`, `undone`
+  - important columns: `id`, `customer`, `datetime`, `amount`, `balance`, `kind`, `note`, `approved`, `undone`
   - linked to `customers.id`
+- `customer_reward_state`
+  - generic per-customer reward state, such as current savings level, input-lead state, monthly interest period, and daily chest display date
+- `reward_events`
+  - auditable reward queue rows shown as customer chests
+  - links interest rewards to the transaction that created money
 
 The schema has foreign keys from `leases.customer` and `transactions.customer` to `customers.id`, both with cascade delete/update.
 
@@ -95,6 +103,10 @@ Current migrations:
 - `database/migrations/20260602_001_add_google_identity_to_customers.sql`
   - adds `google_sub`, `email`, and `display_name` to `customers`
   - adds unique indexes for `google_sub` and `email`
+- `database/migrations/20260603_001_add_rewards.sql`
+  - adds `kind` and `note` to `transactions`
+  - creates `customer_reward_state` and `reward_events`
+  - initializes current customers to their existing achievement state so live users do not receive retroactive milestone rewards
 
 `database/seed.sql` intentionally omits all rows from `leases`; sessions are runtime state and should not be restored from the historical live dump. It preserves live customers, password hashes, transaction history, balances, `approved`, and `undone` flags.
 
@@ -111,13 +123,17 @@ Read routes:
 - `GET /backend/customers/{id}/transactions`
   - returns non-undone transactions for one customer; non-boss users may only request their own ID
 - `GET /backend/customers/me/kpis`
-  - returns balance, pig count, incoming count, and outgoing count for the logged-in customer
+  - lazily applies monthly interest when due, then returns balance, pig count, incoming count, and outgoing count for the logged-in customer
 - `GET /backend/customers/{id}/kpis`
   - returns balance, pig count, incoming count, and outgoing count; non-boss users may only request their own ID
 - `GET /backend/customers`
   - boss-only; returns non-boss customers in the boss user's realm
 - `GET /backend/customers/{realm}`
   - boss-only compatibility route; ignores the client-supplied realm and uses the boss user's session realm
+- `GET /backend/customers/me/rewards/daily`
+  - returns unopened rewards for the logged-in customer
+  - unopened reward events are not suppressed by an earlier same-day empty check, so deposits added later still appear on the next customer login
+  - also runs the lazy monthly-interest check
 
 Write/auth routes:
 
@@ -146,12 +162,15 @@ Write/auth routes:
   - compatibility route for `POST /backend/auth/logout`
 - `POST /backend/customers/{id}/cashin`
   - boss-only; creates a transaction using a positive or negative `value`
+  - positive deposits create a gold chest reward and can trigger achievement interest rewards
   - expects `value`
 - `POST /backend/customers/{id}/cashout`
   - boss-only; currently calls the same backend logic as `cashin`
   - expects `value`
 - `DELETE /backend/transactions/{id}`
   - boss-only; soft-deletes a transaction
+- `POST /backend/customers/me/rewards/{id}/open`
+  - marks a reward chest as opened for the logged-in customer
 
 ## Running Locally
 
@@ -188,6 +207,14 @@ Optional variables:
   - Google OAuth web client ID; when empty, Google sign-in is disabled
 - `GOOGLE_JWKS_URL`
   - Google public key endpoint; defaults to `https://www.googleapis.com/oauth2/v3/certs`
+- `MONTHLY_INTEREST_RATE`
+  - monthly lazy interest rate as a decimal multiplier; `0.0008` means 0.08%
+- `SAVINGS_MILESTONE_REWARD_RATE`
+  - one-time interest rate for crossing 100, 200, 300, ... from below
+- `INPUT_LEAD_REWARD_RATE`
+  - one-time interest rate for inbound manual transactions becoming greater than outbound manual transactions
+- `REWARD_DEPOSIT_ENABLED`, `REWARD_MONTHLY_INTEREST_ENABLED`, `REWARD_SAVINGS_MILESTONE_ENABLED`, `REWARD_INPUT_LEAD_ENABLED`
+  - enable or disable individual reward families
 
 Google sign-in requires the production PHP runtime to be able to make outbound HTTPS requests to the Google public key endpoint. The verifier first tries `file_get_contents()` when `allow_url_fopen` is enabled, then falls back to cURL when the PHP cURL extension is available.
 
@@ -241,6 +268,7 @@ Important issues to address during modernization:
 - Balances are stored on each transaction and also recalculated from transaction sums in places. This should be reviewed before changing transaction behavior.
 - The legacy `leases` table is still present for historical compatibility, but active authentication now uses PHP sessions.
 - The frontend still depends on CDN assets. Consider vendoring assets or adding an asset pipeline if offline/deploy reproducibility becomes important.
+- Reward chest images are currently copied from `misc/chests` without an image optimization step. Optimizing those PNGs would reduce first-load weight.
 - The current UI has been consolidated into shared Bootstrap/plain-JS screens. The next refresh work should focus on functionality and sharper boss workflows.
 
 ## Verification Status
@@ -251,5 +279,6 @@ Recent checks were run against `.env.test` with the PHP built-in server.
 - `node --check site/app.js` passed.
 - HTTP smoke checks returned 200 for `/`, `/customer/`, `/boss/`, `/styles.css`, and `/app.js`.
 - Password login, session cookies, customer KPI/transaction APIs, boss login, boss customer listing, and boss transaction listing were verified with temporary test users and then cleaned up.
-- `npm test` passed 4 Playwright Chromium smoke tests covering the public login page, signed-out customer page, logged-in customer dashboard, and logged-in boss dashboard.
+- `npm test` passed 30 Playwright checks across desktop Chromium and mobile Chrome, including banking KPI behavior, sortable transaction tables, reward events, daily reward queues, lazy monthly interest, and smoke screenshots.
+- A manual Playwright visual pass verified the mobile reward chest modal in closed and opened states.
 - Google token verification still requires a real Google ID token and PHP OpenSSL. The server-side Google auth path is present, but end-to-end Google sign-in should be rechecked in a browser after configuring a valid Google client.

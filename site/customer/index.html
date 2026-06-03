@@ -7,6 +7,9 @@
 		<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
 		<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css" rel="stylesheet">
 		<link href="../styles.css" rel="stylesheet">
+		<link rel="preload" href="../assets/rewards/chest-closed.png" as="image">
+		<link rel="preload" href="../assets/rewards/chest-open-gold.png" as="image">
+		<link rel="preload" href="../assets/rewards/chest-open-crystals.png" as="image">
 	</head>
 	<body data-page="customer" data-api-base="../backend">
 		<div class="app-shell">
@@ -122,6 +125,32 @@
 					</div>
 				</section>
 			</main>
+		</div>
+
+		<div class="modal fade reward-modal" id="reward-modal" tabindex="-1" aria-labelledby="reward-title" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+			<div class="modal-dialog modal-dialog-centered">
+				<div class="modal-content reward-modal-content">
+					<div class="modal-body text-center p-4 p-sm-5">
+						<div class="reward-stage" aria-live="polite">
+							<div class="reward-sparkles" aria-hidden="true">
+								<span></span><span></span><span></span><span></span><span></span><span></span>
+							</div>
+							<button id="reward-chest-button" class="reward-chest-button" type="button" aria-label="Belohnung oeffnen">
+								<img id="reward-chest-image" src="../assets/rewards/chest-closed.png" alt="">
+							</button>
+						</div>
+						<div class="reward-copy">
+							<p id="reward-step" class="mini-badge reward-step mx-auto mb-3">Belohnung</p>
+							<h1 class="h3 mb-2" id="reward-title">Pocket Bonus</h1>
+							<p id="reward-description" class="text-secondary mb-3">Tippe auf die Kiste.</p>
+							<div id="reward-amount" class="reward-amount mb-3">0.00</div>
+							<button id="reward-next-button" type="button" class="btn btn-primary is-hidden">
+								<i class="bi bi-stars me-1"></i>Weiter
+							</button>
+						</div>
+					</div>
+				</div>
+			</div>
 		</div>
 
 		<div class="modal fade" id="twint-modal" tabindex="-1" aria-labelledby="twint-modal-label" aria-hidden="true">

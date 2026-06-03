@@ -127,7 +127,8 @@ function dbNofInAndOut($customer)
 		FROM transactions t
 		WHERE t.customer = :customer
 		AND t.undone = 0
-		AND t.approved = 1",
+		AND t.approved = 1
+		AND t.kind = 'manual'",
 		array("customer" => (int) $customer)
 	);
 
@@ -155,13 +156,20 @@ function dbCustomersAll($realm)
 
 function dbChashInOut($transaction)
 {
+	$result = dbChashInOutWithDetails($transaction);
+	return $result["balance_after"];
+}
+
+function dbChashInOutWithDetails($transaction)
+{
 	$db = getDB();
 	$db->beginTransaction();
 
 	try {
+		$balanceBefore = dbBalanceByCustomer((int) $transaction["customer"]);
 		dbExecute(
-			"INSERT INTO transactions (customer, amount, balance, approved, undone)
-			VALUES (:customer, :amount, 0, 1, 0)",
+			"INSERT INTO transactions (customer, amount, balance, kind, approved, undone)
+			VALUES (:customer, :amount, 0, 'manual', 1, 0)",
 			array(
 				"customer" => (int) $transaction["customer"],
 				"amount" => (float) $transaction["value"],
@@ -180,11 +188,38 @@ function dbChashInOut($transaction)
 		);
 
 		$db->commit();
-		return $balance;
+		return array(
+			"id" => $newtransaction,
+			"customer" => (int) $transaction["customer"],
+			"amount" => (float) $transaction["value"],
+			"balance_before" => $balanceBefore,
+			"balance_after" => $balance,
+		);
 	} catch (Exception $e) {
 		$db->rollBack();
 		throw $e;
 	}
+}
+
+function dbInsertSystemTransaction($customer, $amount, $kind, $note)
+{
+	dbExecute(
+		"INSERT INTO transactions (customer, amount, balance, kind, note, approved, undone)
+		VALUES (:customer, :amount, 0, :kind, :note, 1, 0)",
+		array(
+			"customer" => (int) $customer,
+			"amount" => (float) $amount,
+			"kind" => $kind,
+			"note" => $note,
+		)
+	);
+	$id = (int) getDB()->lastInsertId();
+	$balance = dbRecalculateBalancesForCustomer((int) $customer);
+
+	return array(
+		"id" => $id,
+		"balance" => $balance,
+	);
 }
 
 function dbTransactionDelete($id)
@@ -420,6 +455,99 @@ function dbCheckAvailability($username)
 	);
 
 	return $row["unavailable"] == 0;
+}
+
+/*
+**	REWARD STUFF
+*/
+
+function dbRewardState($customer, $key, $default = null)
+{
+	$row = dbFetchOne(
+		"SELECT state_value
+		FROM customer_reward_state
+		WHERE customer = :customer
+		AND state_key = :state_key",
+		array(
+			"customer" => (int) $customer,
+			"state_key" => $key,
+		)
+	);
+
+	return $row ? $row["state_value"] : $default;
+}
+
+function dbSetRewardState($customer, $key, $value)
+{
+	dbExecute(
+		"INSERT INTO customer_reward_state (customer, state_key, state_value)
+		VALUES (:customer, :state_key, :state_value)
+		ON DUPLICATE KEY UPDATE state_value = VALUES(state_value)",
+		array(
+			"customer" => (int) $customer,
+			"state_key" => $key,
+			"state_value" => (string) $value,
+		)
+	);
+}
+
+function dbInsertRewardEvent($event)
+{
+	dbExecute(
+		"INSERT INTO reward_events (
+			customer, reward_key, reward_type, chest_variant, title, description,
+			trigger_value, interest_rate, amount, balance_before, balance_after, transaction_id
+		) VALUES (
+			:customer, :reward_key, :reward_type, :chest_variant, :title, :description,
+			:trigger_value, :interest_rate, :amount, :balance_before, :balance_after, :transaction_id
+		)",
+		array(
+			"customer" => (int) $event["customer"],
+			"reward_key" => $event["reward_key"],
+			"reward_type" => $event["reward_type"],
+			"chest_variant" => $event["chest_variant"],
+			"title" => $event["title"],
+			"description" => $event["description"],
+			"trigger_value" => isset($event["trigger_value"]) ? $event["trigger_value"] : null,
+			"interest_rate" => isset($event["interest_rate"]) ? $event["interest_rate"] : null,
+			"amount" => (float) $event["amount"],
+			"balance_before" => (float) $event["balance_before"],
+			"balance_after" => (float) $event["balance_after"],
+			"transaction_id" => isset($event["transaction_id"]) ? $event["transaction_id"] : null,
+		)
+	);
+
+	return (int) getDB()->lastInsertId();
+}
+
+function dbUnopenedRewardEvents($customer)
+{
+	return dbFetchAll(
+		"SELECT id, reward_key, reward_type, chest_variant, title, description,
+			trigger_value, interest_rate, amount, balance_before, balance_after, earned_at
+		FROM reward_events
+		WHERE customer = :customer
+		AND opened_at IS NULL
+		ORDER BY earned_at ASC, id ASC",
+		array("customer" => (int) $customer)
+	);
+}
+
+function dbOpenRewardEvent($customer, $event)
+{
+	$stmt = dbExecute(
+		"UPDATE reward_events
+		SET opened_at = CURRENT_TIMESTAMP
+		WHERE id = :id
+		AND customer = :customer
+		AND opened_at IS NULL",
+		array(
+			"id" => (int) $event,
+			"customer" => (int) $customer,
+		)
+	);
+
+	return $stmt->rowCount() > 0;
 }
 
 ?>

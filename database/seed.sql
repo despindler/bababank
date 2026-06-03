@@ -200,6 +200,26 @@ INSERT INTO `transactions` (`id`, `customer`, `datetime`, `amount`, `balance`, `
 (183, 4, '2026-05-30 13:56:39', 40, 97.2, 1, 0),
 (184, 4, '2026-05-30 13:57:06', -11.8, 85.4, 1, 0);
 
+INSERT INTO customer_reward_state (`customer`, `state_key`, `state_value`)
+SELECT c.id, 'savings_level', CAST(FLOOR(GREATEST(COALESCE(SUM(CASE WHEN t.undone = 0 AND t.approved = 1 THEN t.amount ELSE 0 END), 0), 0) / 100) AS CHAR)
+FROM customers c
+LEFT JOIN transactions t ON t.customer = c.id
+WHERE c.boss = 0
+GROUP BY c.id;
+
+INSERT INTO customer_reward_state (`customer`, `state_key`, `state_value`)
+SELECT c.id, 'input_lead_active',
+  CASE
+    WHEN COALESCE(SUM(CASE WHEN t.undone = 0 AND t.approved = 1 AND t.kind = 'manual' AND t.amount >= 0 THEN 1 ELSE 0 END), 0) >
+      COALESCE(SUM(CASE WHEN t.undone = 0 AND t.approved = 1 AND t.kind = 'manual' AND t.amount < 0 THEN 1 ELSE 0 END), 0)
+    THEN '1'
+    ELSE '0'
+  END
+FROM customers c
+LEFT JOIN transactions t ON t.customer = c.id
+WHERE c.boss = 0
+GROUP BY c.id;
+
 ALTER TABLE `customers` AUTO_INCREMENT = 7;
 ALTER TABLE `leases` AUTO_INCREMENT = 1;
 ALTER TABLE `transactions` AUTO_INCREMENT = 185;

@@ -71,6 +71,25 @@ function requiredEnvValue($key)
 	return $value;
 }
 
+function envBool($key, $default = false)
+{
+	$value = envValue($key);
+	if ($value === null || $value === '') {
+		return $default;
+	}
+	$value = strtolower(trim((string) $value));
+	return in_array($value, array('1', 'true', 'yes', 'on'), true);
+}
+
+function envFloat($key, $default = 0.0)
+{
+	$value = envValue($key);
+	if ($value === null || $value === '') {
+		return (float) $default;
+	}
+	return (float) $value;
+}
+
 $appRoot = __DIR__;
 $projectRoot = dirname(__DIR__);
 $envRoots = array_values(array_unique(array($appRoot, $projectRoot)));

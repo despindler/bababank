@@ -3,6 +3,7 @@
 require_once __DIR__ . "/database.php";
 require_once __DIR__ . "/auth.php";
 require_once __DIR__ . "/google_auth.php";
+require_once __DIR__ . "/rewards.php";
 require __DIR__ . "/flight/Flight.php";
 
 function apiJson($result, $status = 200)
@@ -73,6 +74,7 @@ function transactionsByCustomer($customer)
 
 function kpisByCustomer($customer)
 {
+	rewardsRunLazyMonthlyForCustomer($customer);
 	$balance = dbBalanceByCustomer($customer);
 	if (!$balance) {
 		$balance = 0;
@@ -116,9 +118,28 @@ function cashInOut($customerid, $transaction)
 		);
 	}
 
+	$result = dbChashInOutWithDetails($transaction);
+	$balance = rewardsAfterManualMovement($result);
+
 	return array(
 		"success" => true,
-		"result" => dbChashInOut($transaction),
+		"result" => $balance,
+	);
+}
+
+function dailyRewardsByCustomer($customer)
+{
+	return array(
+		"success" => true,
+		"result" => rewardsDailyQueueForCustomer($customer),
+	);
+}
+
+function openRewardForCustomer($customer, $event)
+{
+	return array(
+		"success" => true,
+		"result" => dbOpenRewardEvent($customer, $event),
 	);
 }
 
@@ -162,6 +183,9 @@ function createCustomer($customer)
 	}
 
 	$result = dbCreateCustomer($customer);
+	if (is_numeric($result)) {
+		rewardsInitializeCustomer((int) $result);
+	}
 
 	return array(
 		"success" => is_numeric($result),
@@ -354,6 +378,22 @@ Flight::route("GET /customers/@id:[0-9]+/kpis", function($customer) {
 		return;
 	}
 	apiJson(kpisByCustomer($customer));
+});
+
+Flight::route("GET /customers/me/rewards/daily", function() {
+	$user = requireCurrentUser();
+	if (!$user) {
+		return;
+	}
+	apiJson(dailyRewardsByCustomer($user["id"]));
+});
+
+Flight::route("POST /customers/me/rewards/@id:[0-9]+/open", function($id) {
+	$user = requireCurrentUser();
+	if (!$user) {
+		return;
+	}
+	apiJson(openRewardForCustomer($user["id"], $id));
 });
 
 Flight::route("GET /customers", function() {

@@ -393,8 +393,190 @@ body {
 	transform: translateX(-50%);
 }
 
+.reward-modal {
+	--bs-modal-bg: transparent;
+	--bs-modal-border-width: 0;
+}
+
+.reward-modal .modal-dialog {
+	max-width: min(34rem, calc(100vw - 1rem));
+}
+
+.reward-modal-content {
+	border: 0;
+	border-radius: 28px;
+	background:
+		radial-gradient(circle at 50% 18%, rgba(184, 228, 69, 0.42), transparent 36%),
+		linear-gradient(180deg, #202433 0%, #111521 100%);
+	color: #fff;
+	box-shadow: 0 32px 90px rgba(15, 10, 26, 0.48);
+	overflow: hidden;
+}
+
+.reward-stage {
+	position: relative;
+	min-height: 18rem;
+	display: grid;
+	place-items: center;
+	isolation: isolate;
+}
+
+.reward-stage::before {
+	content: "";
+	position: absolute;
+	width: 17rem;
+	height: 17rem;
+	border-radius: 50%;
+	background: radial-gradient(circle, rgba(255, 241, 118, 0.42), rgba(102, 199, 244, 0.14) 42%, transparent 70%);
+	filter: blur(2px);
+	animation: rewardPulse 1500ms ease-in-out infinite alternate;
+	z-index: -1;
+}
+
+.reward-chest-button {
+	width: min(21rem, 82vw);
+	aspect-ratio: 1.1;
+	border: 0;
+	background: transparent;
+	padding: 0;
+	cursor: pointer;
+	filter: drop-shadow(0 24px 18px rgba(0, 0, 0, 0.28));
+	animation: chestArrival 600ms cubic-bezier(0.2, 1.2, 0.2, 1);
+}
+
+.reward-chest-button:hover,
+.reward-chest-button:focus-visible {
+	transform: translateY(-0.25rem) scale(1.02);
+	outline: none;
+}
+
+.reward-chest-button img {
+	width: 100%;
+	height: 100%;
+	object-fit: contain;
+	pointer-events: none;
+	animation: chestFloat 1800ms ease-in-out 650ms infinite alternate;
+}
+
+.reward-chest-button.is-open {
+	animation: chestOpen 520ms cubic-bezier(0.22, 1, 0.36, 1);
+	cursor: default;
+}
+
+.reward-chest-button.is-open img {
+	animation: none;
+}
+
+.reward-copy {
+	position: relative;
+	z-index: 1;
+}
+
+.reward-step {
+	width: fit-content;
+	background: rgba(255, 255, 255, 0.12);
+	color: #fff;
+	border-color: rgba(255, 255, 255, 0.22);
+}
+
+.reward-amount {
+	font-size: clamp(2.5rem, 12vw, 5rem);
+	line-height: 1;
+	font-weight: 850;
+	color: var(--bank-lime);
+	text-shadow: 0 0 24px rgba(184, 228, 69, 0.34);
+}
+
+.reward-sparkles {
+	position: absolute;
+	inset: 0;
+	pointer-events: none;
+	opacity: 0;
+}
+
+.reward-stage.is-open .reward-sparkles {
+	opacity: 1;
+}
+
+.reward-sparkles span {
+	position: absolute;
+	width: 0.55rem;
+	height: 0.55rem;
+	border-radius: 50%;
+	background: var(--bank-lime);
+	box-shadow: 0 0 18px rgba(184, 228, 69, 0.9);
+	animation: sparklePop 850ms ease-out both;
+}
+
+.reward-sparkles span:nth-child(1) { left: 18%; top: 34%; animation-delay: 40ms; }
+.reward-sparkles span:nth-child(2) { left: 31%; top: 19%; animation-delay: 120ms; }
+.reward-sparkles span:nth-child(3) { right: 25%; top: 22%; animation-delay: 80ms; }
+.reward-sparkles span:nth-child(4) { right: 16%; top: 42%; animation-delay: 160ms; }
+.reward-sparkles span:nth-child(5) { left: 28%; bottom: 22%; animation-delay: 210ms; }
+.reward-sparkles span:nth-child(6) { right: 32%; bottom: 18%; animation-delay: 260ms; }
+
 .is-hidden {
 	display: none !important;
+}
+
+@keyframes chestArrival {
+	from {
+		opacity: 0;
+		transform: translateY(4rem) scale(0.72) rotate(-5deg);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0) scale(1) rotate(0);
+	}
+}
+
+@keyframes chestFloat {
+	from {
+		transform: translateY(0) rotate(-0.5deg);
+	}
+	to {
+		transform: translateY(-0.45rem) rotate(0.5deg);
+	}
+}
+
+@keyframes chestOpen {
+	0% {
+		transform: scale(1) rotate(0);
+	}
+	35% {
+		transform: scale(0.92) rotate(-2deg);
+	}
+	70% {
+		transform: scale(1.08) rotate(2deg);
+	}
+	100% {
+		transform: scale(1) rotate(0);
+	}
+}
+
+@keyframes rewardPulse {
+	from {
+		transform: scale(0.92);
+		opacity: 0.75;
+	}
+	to {
+		transform: scale(1.08);
+		opacity: 1;
+	}
+}
+
+@keyframes sparklePop {
+	0% {
+		opacity: 0;
+		transform: translateY(1rem) scale(0.4);
+	}
+	35% {
+		opacity: 1;
+	}
+	100% {
+		opacity: 0;
+		transform: translateY(-4rem) scale(1.4);
+	}
 }
 
 @media (max-width: 575.98px) {
@@ -414,5 +596,9 @@ body {
 
 	.pocket-scene {
 		width: min(100%, 20rem);
+	}
+
+	.reward-stage {
+		min-height: 14rem;
 	}
 }

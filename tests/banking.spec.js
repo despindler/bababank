@@ -40,6 +40,9 @@ dbExecute('INSERT INTO transactions (customer, amount, balance, approved, undone
 dbExecute('INSERT INTO transactions (customer, amount, balance, approved, undone) VALUES (:customer, -25.40, 199.60, 1, 0)', array('customer' => $customerId));
 dbExecute('INSERT INTO transactions (customer, amount, balance, approved, undone) VALUES (:customer, 100.00, 299.60, 0, 0)', array('customer' => $customerId));
 dbExecute('INSERT INTO transactions (customer, amount, balance, approved, undone) VALUES (:customer, -100.00, 99.60, 1, 1)', array('customer' => $customerId));
+dbExecute('INSERT INTO customer_reward_state (customer, state_key, state_value) VALUES (:customer, :state_key, :state_value)', array('customer' => $customerId, 'state_key' => 'monthly_interest_period', 'state_value' => date('Y-m')));
+dbExecute('INSERT INTO customer_reward_state (customer, state_key, state_value) VALUES (:customer, :state_key, :state_value)', array('customer' => $customerId, 'state_key' => 'savings_level', 'state_value' => '1'));
+dbExecute('INSERT INTO customer_reward_state (customer, state_key, state_value) VALUES (:customer, :state_key, :state_value)', array('customer' => $customerId, 'state_key' => 'input_lead_active', 'state_value' => '1'));
 echo json_encode(array('customerUsername' => $customerUsername, 'password' => $password, 'realm' => $realm, 'customerId' => $customerId));
 `;
 	fixture = JSON.parse(runPhp(code));
@@ -51,6 +54,8 @@ test.afterAll(() => {
 	}
 	const code = `
 require_once getcwd() . '/site/backend/database.php';
+dbExecute('DELETE FROM reward_events WHERE customer = :customer', array('customer' => ${fixture.customerId}));
+dbExecute('DELETE FROM customer_reward_state WHERE customer = :customer', array('customer' => ${fixture.customerId}));
 dbExecute('DELETE FROM transactions WHERE customer = :customer', array('customer' => ${fixture.customerId}));
 dbExecute('DELETE FROM leases WHERE customer = :customer', array('customer' => ${fixture.customerId}));
 dbExecute('DELETE FROM customers WHERE id = :customer', array('customer' => ${fixture.customerId}));

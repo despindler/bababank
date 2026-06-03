@@ -2,6 +2,9 @@ const Bank = (() => {
 	let currentUser = null;
 	let customerTransactions = [];
 	let bossTransactions = [];
+	let rewardQueue = [];
+	let rewardIndex = 0;
+	let rewardOpened = false;
 	const transactionSort = {
 		customer: { key: "datetime", direction: "desc" },
 		boss: { key: "datetime", direction: "desc" },
@@ -78,6 +81,13 @@ const Bank = (() => {
 			minimumFractionDigits: 2,
 			maximumFractionDigits: 2,
 		}).format(Math.abs(number));
+	}
+
+	function rewardImage(variant, opened = false) {
+		if (!opened) {
+			return "../assets/rewards/chest-closed.png";
+		}
+		return variant === "crystals" ? "../assets/rewards/chest-open-crystals.png" : "../assets/rewards/chest-open-gold.png";
 	}
 
 	function dateTime(value) {
@@ -308,7 +318,10 @@ const Bank = (() => {
 			show("#customer-app-nav");
 			show("#customer-app");
 			initSortControls("customer", renderCustomerTransactions);
-			await Promise.all([loadCustomerKpis(), loadCustomerTransactions()]);
+			initRewardModal();
+			await loadCustomerKpis();
+			await loadCustomerTransactions();
+			await loadDailyRewards();
 		} catch (error) {
 			show("#signed-out");
 		}
@@ -331,6 +344,116 @@ const Bank = (() => {
 			const balance = Math.max(0, Number(kpis.balance) || 0);
 			progress.style.setProperty("--progress", `${Math.min(100, balance % 100)}%`);
 		}
+	}
+
+	async function loadDailyRewards() {
+		const payload = await api("/customers/me/rewards/daily");
+		if (Array.isArray(payload.result) && payload.result.length) {
+			showRewardQueue(payload.result);
+		}
+	}
+
+	function initRewardModal() {
+		qs("#reward-chest-button")?.addEventListener("click", openCurrentReward);
+		qs("#reward-next-button")?.addEventListener("click", nextReward);
+	}
+
+	function showRewardQueue(events) {
+		rewardQueue = events;
+		rewardIndex = 0;
+		renderCurrentReward();
+		bootstrapModal("#reward-modal")?.show();
+	}
+
+	function currentReward() {
+		return rewardQueue[rewardIndex] || null;
+	}
+
+	function renderCurrentReward() {
+		const reward = currentReward();
+		if (!reward) {
+			return;
+		}
+		rewardOpened = false;
+		setText("#reward-step", `${rewardIndex + 1} / ${rewardQueue.length}`);
+		setText("#reward-title", reward.title || "Pocket Bonus");
+		setText("#reward-description", "Tippe auf die Kiste.");
+		setText("#reward-amount", "");
+		const image = qs("#reward-chest-image");
+		const button = qs("#reward-chest-button");
+		qs(".reward-stage")?.classList.remove("is-open");
+		if (image) {
+			image.src = rewardImage(reward.chest_variant, false);
+		}
+		if (button) {
+			button.disabled = false;
+			button.classList.remove("is-open");
+		}
+		hide("#reward-next-button");
+	}
+
+	async function openCurrentReward() {
+		const reward = currentReward();
+		if (!reward || rewardOpened) {
+			return;
+		}
+		rewardOpened = true;
+		const button = qs("#reward-chest-button");
+		const image = qs("#reward-chest-image");
+		if (button) {
+			button.disabled = true;
+			button.classList.add("is-open");
+		}
+		qs(".reward-stage")?.classList.add("is-open");
+		if (image) {
+			image.src = rewardImage(reward.chest_variant, true);
+		}
+
+		setText("#reward-description", reward.description || "Belohnung erhalten.");
+		setText("#reward-amount", `+ ${money(reward.amount)}`);
+		animateBalance(Number(reward.balance_before), Number(reward.balance_after));
+
+		try {
+			await api(`/customers/me/rewards/${reward.id}/open`, { method: "POST" });
+		} catch (error) {
+			toast(error.message, "danger");
+		}
+		show("#reward-next-button");
+	}
+
+	async function nextReward() {
+		rewardIndex += 1;
+		if (rewardIndex < rewardQueue.length) {
+			renderCurrentReward();
+			return;
+		}
+		bootstrapModal("#reward-modal")?.hide();
+		rewardQueue = [];
+		await Promise.all([loadCustomerKpis(), loadCustomerTransactions()]);
+	}
+
+	function animateBalance(from, to) {
+		const element = qs("#kpi-balance");
+		if (!element || !Number.isFinite(from) || !Number.isFinite(to)) {
+			return;
+		}
+		const start = performance.now();
+		const duration = 950;
+		const easeOut = (value) => 1 - Math.pow(1 - value, 3);
+
+		function frame(now) {
+			const progress = Math.min(1, (now - start) / duration);
+			const value = from + (to - from) * easeOut(progress);
+			element.textContent = money(value);
+			qs("#kpi-balance-sign").innerHTML = value < 0 ? icon("dash-lg") : icon("plus-lg");
+			if (progress < 1) {
+				window.requestAnimationFrame(frame);
+				return;
+			}
+			element.textContent = money(to);
+		}
+
+		window.requestAnimationFrame(frame);
 	}
 
 	async function loadCustomerTransactions() {
