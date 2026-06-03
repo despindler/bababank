@@ -262,6 +262,11 @@ const Bank = (() => {
 		setText("#kpi-ins", kpis.nofins);
 		setText("#kpi-outs", kpis.nofouts);
 		qs("#kpi-balance-sign").innerHTML = Number(kpis.balance) < 0 ? icon("dash-lg") : icon("plus-lg");
+		const progress = qs("#savings-progress");
+		if (progress) {
+			const balance = Math.max(0, Number(kpis.balance) || 0);
+			progress.style.setProperty("--progress", `${Math.min(100, balance % 100)}%`);
+		}
 	}
 
 	async function loadCustomerTransactions() {

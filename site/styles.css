@@ -1,14 +1,20 @@
 :root {
-	--bank-bg: #f6f5f2;
+	--bank-bg: #fff8ec;
 	--bank-surface: #ffffff;
-	--bank-surface-muted: #efede8;
-	--bank-border: #dedbd2;
-	--bank-text: #202124;
-	--bank-muted: #6f6f67;
-	--bank-accent: #1f6f68;
-	--bank-accent-strong: #0f4c47;
-	--bank-danger: #a23b3b;
+	--bank-surface-muted: #f6f0df;
+	--bank-border: #eadfca;
+	--bank-text: #202433;
+	--bank-muted: #6d7383;
+	--bank-accent: #0f7c75;
+	--bank-accent-strong: #075f59;
+	--bank-lime: #b8e445;
+	--bank-coral: #ff6f61;
+	--bank-sky: #66c7f4;
+	--bank-ink: #202433;
+	--bank-danger: #d64d56;
 	--bank-radius: 8px;
+	--bank-radius-lg: 18px;
+	--bank-shadow: 0 18px 45px rgba(53, 45, 28, 0.12);
 }
 
 html,
@@ -20,6 +26,7 @@ body {
 	background: var(--bank-bg);
 	color: var(--bank-text);
 	letter-spacing: 0;
+	font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
 .app-shell {
@@ -34,29 +41,44 @@ body {
 
 .navbar {
 	border-bottom: 1px solid var(--bank-border);
-	background: rgba(255, 255, 255, 0.92);
+	background: rgba(255, 252, 244, 0.88);
 	backdrop-filter: blur(12px);
 }
 
 .brand-mark {
-	width: 2rem;
-	height: 2rem;
+	width: 2.25rem;
+	height: 2.25rem;
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
 	border-radius: 50%;
-	background: var(--bank-accent);
-	color: #fff;
+	background: var(--bank-ink);
+	color: var(--bank-lime);
+	box-shadow: inset 0 -4px 0 rgba(255, 255, 255, 0.08);
 }
 
 .surface {
 	background: var(--bank-surface);
 	border: 1px solid var(--bank-border);
-	border-radius: var(--bank-radius);
+	border-radius: var(--bank-radius-lg);
+	box-shadow: 0 10px 30px rgba(52, 44, 24, 0.08);
 }
 
 .metric {
-	min-height: 8.5rem;
+	min-height: 8rem;
+	position: relative;
+	overflow: hidden;
+}
+
+.metric::after {
+	content: "";
+	position: absolute;
+	right: -1.5rem;
+	bottom: -1.5rem;
+	width: 5rem;
+	height: 5rem;
+	border-radius: 50%;
+	background: rgba(184, 228, 69, 0.28);
 }
 
 .metric-value {
@@ -75,8 +97,105 @@ body {
 	max-width: 30rem;
 }
 
-.splash {
-	max-width: 14rem;
+.login-hero {
+	min-height: min(42rem, calc(100vh - 8rem));
+}
+
+.hero-title {
+	font-size: clamp(3.25rem, 10vw, 6.75rem);
+	line-height: 0.9;
+	letter-spacing: 0;
+	font-weight: 850;
+}
+
+.hero-copy {
+	max-width: 35rem;
+	font-size: 1.2rem;
+}
+
+.pocket-scene {
+	position: relative;
+	width: min(100%, 25rem);
+	aspect-ratio: 1.2;
+	border-radius: 28px;
+	background: #202433;
+	box-shadow: var(--bank-shadow);
+	overflow: hidden;
+	border: 6px solid #ffffff;
+}
+
+.pocket-scene::before {
+	content: "";
+	position: absolute;
+	inset: 2rem 2.25rem 3rem;
+	border: 2px solid rgba(255, 255, 255, 0.16);
+	border-radius: 0 0 80px 80px;
+	border-top: 0;
+}
+
+.pocket-flap {
+	position: absolute;
+	left: 2.5rem;
+	right: 2.5rem;
+	top: 2.25rem;
+	height: 6rem;
+	border-radius: 18px 18px 44px 44px;
+	background: var(--bank-accent);
+	transform: rotate(-3deg);
+	box-shadow: inset 0 -10px 0 rgba(0, 0, 0, 0.12);
+}
+
+.coin {
+	position: absolute;
+	width: 5.25rem;
+	height: 5.25rem;
+	border-radius: 50%;
+	background: var(--bank-lime);
+	border: 6px solid #f7ffd8;
+	box-shadow: 0 12px 0 rgba(0, 0, 0, 0.18);
+	color: var(--bank-ink);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 2rem;
+}
+
+.coin-one {
+	left: 3.25rem;
+	top: 8.5rem;
+	transform: rotate(-11deg);
+}
+
+.coin-two {
+	right: 3rem;
+	top: 6.8rem;
+	width: 4.5rem;
+	height: 4.5rem;
+	background: var(--bank-sky);
+	border-color: #ddf5ff;
+	transform: rotate(9deg);
+}
+
+.coin-three {
+	right: 6.25rem;
+	bottom: 3.5rem;
+	width: 4rem;
+	height: 4rem;
+	background: var(--bank-coral);
+	border-color: #ffe1dc;
+	transform: rotate(-7deg);
+}
+
+.mini-badge {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.45rem;
+	border: 1px solid var(--bank-border);
+	background: rgba(255, 255, 255, 0.72);
+	border-radius: 999px;
+	padding: 0.45rem 0.8rem;
+	font-weight: 700;
+	color: var(--bank-ink);
 }
 
 .btn-primary {
@@ -86,6 +205,8 @@ body {
 	--bs-btn-hover-border-color: var(--bank-accent-strong);
 	--bs-btn-active-bg: var(--bank-accent-strong);
 	--bs-btn-active-border-color: var(--bank-accent-strong);
+	--bs-btn-border-radius: 999px;
+	--bs-btn-font-weight: 700;
 }
 
 .btn-outline-primary {
@@ -95,11 +216,17 @@ body {
 	--bs-btn-hover-border-color: var(--bank-accent);
 	--bs-btn-active-bg: var(--bank-accent-strong);
 	--bs-btn-active-border-color: var(--bank-accent-strong);
+	--bs-btn-border-radius: 999px;
+	--bs-btn-font-weight: 700;
+}
+
+.btn-outline-secondary {
+	--bs-btn-border-radius: 999px;
 }
 
 .table {
 	--bs-table-bg: transparent;
-	--bs-table-striped-bg: rgba(31, 111, 104, 0.05);
+	--bs-table-striped-bg: rgba(102, 199, 244, 0.09);
 }
 
 .table thead th {
@@ -121,6 +248,75 @@ body {
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
+}
+
+.balance-hero {
+	position: relative;
+	overflow: hidden;
+	background: var(--bank-ink);
+	color: #fff;
+}
+
+.balance-hero > * {
+	position: relative;
+	z-index: 1;
+}
+
+.balance-hero::after {
+	content: "";
+	position: absolute;
+	right: 1.25rem;
+	top: 1.25rem;
+	width: 7.5rem;
+	height: 7.5rem;
+	border-radius: 50%;
+	border: 18px solid rgba(184, 228, 69, 0.8);
+}
+
+.balance-hero .metric-label,
+.balance-hero .text-secondary {
+	color: rgba(255, 255, 255, 0.72) !important;
+}
+
+.balance-hero .metric-value {
+	font-size: clamp(3rem, 11vw, 5.5rem);
+}
+
+.savings-card {
+	background: #f9ffdc;
+}
+
+.activity-card {
+	background: #f2fbff;
+}
+
+.progress-pocket {
+	height: 1rem;
+	border-radius: 999px;
+	background: rgba(32, 36, 51, 0.12);
+	overflow: hidden;
+}
+
+.progress-pocket-bar {
+	width: var(--progress, 0%);
+	min-width: 0.4rem;
+	height: 100%;
+	border-radius: inherit;
+	background: var(--bank-coral);
+	transition: width 240ms ease;
+}
+
+.signed-out-icon {
+	width: 4.75rem;
+	height: 4.75rem;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: 24px;
+	background: var(--bank-lime);
+	color: var(--bank-ink);
+	font-size: 2rem;
+	transform: rotate(-4deg);
 }
 
 .status-toast {
@@ -145,5 +341,13 @@ body {
 
 	.table-responsive {
 		border: 0;
+	}
+
+	.hero-title {
+		font-size: 3.4rem;
+	}
+
+	.pocket-scene {
+		width: min(100%, 20rem);
 	}
 }

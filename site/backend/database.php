@@ -49,37 +49,55 @@ function dbExecute($query, $params = array())
 function dbTransactionsAll()
 {
 	$result = dbFetchAll(
-		"SELECT t.id, c.fullname, t.datetime, t.amount, t.balance, t.approved
+		"SELECT t.id, t.customer, c.fullname, t.datetime, t.amount, t.balance, t.approved
 		FROM transactions t, customers c
 		WHERE t.customer = c.id
 		AND t.undone = 0
-		ORDER BY t.datetime DESC"
+		AND t.approved = 1
+		ORDER BY t.customer ASC, t.datetime ASC, t.id ASC"
 	);
 
-	foreach ($result as $i => $current) {
-		$result[$i]["balance"] = round($current["balance"], 2);
+	return dbWithRunningBalances($result);
+}
+
+function dbWithRunningBalances($transactions)
+{
+	$balances = array();
+
+	foreach ($transactions as $i => $current) {
+		$customer = isset($current["customer"]) ? (int) $current["customer"] : (isset($current["fullname"]) ? $current["fullname"] : 0);
+		if (!isset($balances[$customer])) {
+			$balances[$customer] = 0;
+		}
+		$balances[$customer] += (float) $current["amount"];
+		$transactions[$i]["balance"] = round($balances[$customer], 2);
 	}
 
-	return $result;
+	usort($transactions, function($a, $b) {
+		$timeCompare = strcmp($b["datetime"], $a["datetime"]);
+		if ($timeCompare !== 0) {
+			return $timeCompare;
+		}
+		return (int) $b["id"] <=> (int) $a["id"];
+	});
+
+	return $transactions;
 }
 
 function dbTransactionsByCustomer($customer)
 {
 	$result = dbFetchAll(
-		"SELECT t.id, c.fullname, t.datetime, t.amount, t.balance, t.approved
+		"SELECT t.id, t.customer, c.fullname, t.datetime, t.amount, t.balance, t.approved
 		FROM transactions t, customers c
 		WHERE t.customer = c.id
 		AND t.undone = 0
+		AND t.approved = 1
 		AND c.id = :customer
-		ORDER BY t.datetime DESC",
+		ORDER BY t.datetime ASC, t.id ASC",
 		array("customer" => (int) $customer)
 	);
 
-	foreach ($result as $i => $current) {
-		$result[$i]["balance"] = round($current["balance"], 2);
-	}
-
-	return $result;
+	return dbWithRunningBalances($result);
 }
 
 function dbBalanceByCustomer($customer)
@@ -142,7 +160,8 @@ function dbChashInOut($transaction)
 
 	try {
 		dbExecute(
-			"INSERT INTO transactions (customer, amount) VALUES (:customer, :amount)",
+			"INSERT INTO transactions (customer, amount, balance, approved, undone)
+			VALUES (:customer, :amount, 0, 1, 0)",
 			array(
 				"customer" => (int) $transaction["customer"],
 				"amount" => (float) $transaction["value"],
@@ -150,11 +169,7 @@ function dbChashInOut($transaction)
 		);
 		$newtransaction = (int) $db->lastInsertId();
 
-		$row = dbFetchOne(
-			"SELECT sum(amount) AS balance FROM transactions WHERE customer = :customer",
-			array("customer" => (int) $transaction["customer"])
-		);
-		$balance = round($row["balance"], 2);
+		$balance = dbRecalculateBalancesForCustomer((int) $transaction["customer"]);
 
 		dbExecute(
 			"UPDATE transactions SET balance = :balance WHERE id = :id",
@@ -174,12 +189,48 @@ function dbChashInOut($transaction)
 
 function dbTransactionDelete($id)
 {
+	$transaction = dbFetchOne(
+		"SELECT customer FROM transactions WHERE id = :id",
+		array("id" => (int) $id)
+	);
+
 	$stmt = dbExecute(
 		"UPDATE transactions SET undone = 1 WHERE id = :id",
 		array("id" => (int) $id)
 	);
 
+	if ($transaction) {
+		dbRecalculateBalancesForCustomer((int) $transaction["customer"]);
+	}
+
 	return $stmt->rowCount();
+}
+
+function dbRecalculateBalancesForCustomer($customer)
+{
+	$transactions = dbFetchAll(
+		"SELECT id, amount
+		FROM transactions
+		WHERE customer = :customer
+		AND undone = 0
+		AND approved = 1
+		ORDER BY datetime ASC, id ASC",
+		array("customer" => (int) $customer)
+	);
+
+	$balance = 0;
+	foreach ($transactions as $transaction) {
+		$balance = round($balance + (float) $transaction["amount"], 2);
+		dbExecute(
+			"UPDATE transactions SET balance = :balance WHERE id = :id",
+			array(
+				"balance" => $balance,
+				"id" => (int) $transaction["id"],
+			)
+		);
+	}
+
+	return $balance;
 }
 
 /*

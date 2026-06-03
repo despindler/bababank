@@ -24,12 +24,16 @@
 
 			<main class="app-main">
 				<div class="container py-4 py-lg-5">
-					<div class="row align-items-center g-4 g-lg-5">
+					<div class="row align-items-center g-4 g-lg-5 login-hero">
 						<section class="col-lg-6">
 							<div class="d-flex flex-column gap-4">
+								<div class="d-flex flex-wrap gap-2">
+									<span class="mini-badge"><i class="bi bi-stars" aria-hidden="true"></i>Pocket Bank</span>
+									<span class="mini-badge"><i class="bi bi-piggy-bank" aria-hidden="true"></i>Taschengeld</span>
+								</div>
 								<div>
-									<h1 class="display-5 fw-bold mb-3">Ba Ba Bank</h1>
-									<p class="lead text-secondary mb-0">Familienbank fuer Taschengeld, Sparziele und Auszahlungen.</p>
+									<h1 class="hero-title mb-3">Ba Ba Bank</h1>
+									<p class="hero-copy text-secondary mb-0">Ein eigener kleiner Geldplatz fuer Sparziele, Einzahlungen und Auszahlungen.</p>
 								</div>
 								<div id="signed-in-actions" class="surface p-3 is-hidden">
 									<div class="d-flex flex-column flex-sm-row align-items-sm-center justify-content-between gap-3">
@@ -42,14 +46,19 @@
 										</a>
 									</div>
 								</div>
-								<img src="img/splash.gif" class="splash img-fluid" alt="Ba Ba Bank">
+								<div class="pocket-scene" aria-hidden="true">
+									<div class="pocket-flap"></div>
+									<div class="coin coin-one"><i class="bi bi-currency-dollar" aria-hidden="true"></i></div>
+									<div class="coin coin-two"><i class="bi bi-lightning-charge-fill" aria-hidden="true"></i></div>
+									<div class="coin coin-three"><i class="bi bi-heart-fill" aria-hidden="true"></i></div>
+								</div>
 							</div>
 						</section>
 
 						<section class="col-lg-5 offset-lg-1">
-							<div class="surface auth-panel p-4 p-md-5 shadow-sm ms-lg-auto">
+							<div class="surface auth-panel p-4 p-md-5 ms-lg-auto">
 								<div class="mb-4">
-									<h2 class="h4 mb-1">Anmelden</h2>
+									<h2 class="h3 mb-1">Anmelden</h2>
 									<div class="text-secondary">Mit Passwort oder Google-Konto.</div>
 								</div>
 								<form id="login-form" class="d-grid gap-3">

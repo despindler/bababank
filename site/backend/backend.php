@@ -78,8 +78,7 @@ function kpisByCustomer($customer)
 		$balance = 0;
 	}
 
-	$nofpigs = intdiv(intval(round($balance)), 100);
-	$nofpigs = max(0, $nofpigs);
+	$nofpigs = (int) floor(max(0, $balance) / 100);
 	$nofinandout = dbNofInAndOut($customer);
 
 	return array(
