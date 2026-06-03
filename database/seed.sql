@@ -8,11 +8,11 @@ SET FOREIGN_KEY_CHECKS = 0;
 START TRANSACTION;
 
 INSERT INTO `customers` (`id`, `fullname`, `username`, `userpassword`, `google_sub`, `email`, `display_name`, `boss`, `realm`) VALUES
-(1, 'Alexandre de Spindler', 'aldespin', '$2y$10$55KQTwuVJF86Iapq6AWpSuN0J5XT5c.4SkFrew0wRPvd6bqkPPbDi', NULL, NULL, NULL, 1, 1),
-(2, 'Lyan de Spindler', 'lyx', '$2y$10$dIFn7bqtSGLYMZeYPmgo5uNCpYin5neas8gwG2oGS8QT2A33/DYse', NULL, NULL, NULL, 0, 1),
-(3, 'Shoya von Spindler', 'shox', '$2y$10$stWqUa2lgAuGfPm.FcsijOQM8s1DpJ6a9KJVWUarV0L42/Mky7Xvy', NULL, NULL, NULL, 0, 1),
-(4, 'Nael de Spindler', 'nax', '$2y$10$tAaLS3.UsC0T70MXMmmQ4eE8bw2fJ1nCdBjvoNwVPqvuXBSwThwmu', NULL, NULL, NULL, 0, 1),
-(5, 'Devin de Spindler', 'vipx', '$2y$10$wD6kQ97A3ie253xOmxSQ/ejQ9nspVyD/ths4s2OJsqUYzh4GE/rSK', NULL, NULL, NULL, 0, 1),
+(1, 'Alexandre de Spindler', 'aldespin', '$2y$10$55KQTwuVJF86Iapq6AWpSuN0J5XT5c.4SkFrew0wRPvd6bqkPPbDi', NULL, 'despindler@gmail.com', NULL, 1, 1),
+(2, 'Lyan de Spindler', 'lyx', '$2y$10$dIFn7bqtSGLYMZeYPmgo5uNCpYin5neas8gwG2oGS8QT2A33/DYse', NULL, 'lyan.de.spindler@gmail.com', NULL, 0, 1),
+(3, 'Shoya von Spindler', 'shox', '$2y$10$stWqUa2lgAuGfPm.FcsijOQM8s1DpJ6a9KJVWUarV0L42/Mky7Xvy', NULL, 'shoya.de.spindler@gmail.com', NULL, 0, 1),
+(4, 'Nael de Spindler', 'nax', '$2y$10$tAaLS3.UsC0T70MXMmmQ4eE8bw2fJ1nCdBjvoNwVPqvuXBSwThwmu', NULL, 'nael.de.spindler@gmail.com', NULL, 0, 1),
+(5, 'Devin de Spindler', 'vipx', '$2y$10$wD6kQ97A3ie253xOmxSQ/ejQ9nspVyD/ths4s2OJsqUYzh4GE/rSK', NULL, 'devin.de.spindler@gmail.com', NULL, 0, 1),
 (6, 'Bernadette Siebertz', 'berni', '$2y$10$z0lBvTjFehU1IsIxSHaXueg4ycljHm7tvPbjQrE9g.jrDp2S15He6', NULL, NULL, NULL, 1, 2);
 
 INSERT INTO `transactions` (`id`, `customer`, `datetime`, `amount`, `balance`, `approved`, `undone`) VALUES
