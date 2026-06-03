@@ -1,7 +1,7 @@
 {
   "name": "bababank",
   "version": "1.0.0",
-  "description": "Ba Ba Bank is a small German-language web application for tracking family bank accounts. It lets children see their account balance and transaction history, while a boss/admin user can register customers, record deposits and payouts, and soft-delete transaction entries.",
+  "description": "Ba Ba Bank is a small German-language family banking app with customer dashboards, boss account management, transactions, and reward chests.",
   "scripts": {
     "dev:test": "node tools/php-dev-server.js",
     "test": "playwright test",

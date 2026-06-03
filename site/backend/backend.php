@@ -102,6 +102,59 @@ function customersAll($realm)
 	);
 }
 
+function bossOverview($realm)
+{
+	return array(
+		"success" => true,
+		"result" => dbBossOverview($realm),
+	);
+}
+
+function bossRewards($realm)
+{
+	return array(
+		"success" => true,
+		"result" => dbRewardOverview($realm),
+	);
+}
+
+function updateRewardSettings($settings)
+{
+	$allowed = array(
+		"monthly_interest_rate" => "decimal",
+		"savings_milestone_reward_rate" => "decimal",
+		"input_lead_reward_rate" => "decimal",
+		"savings_milestone_step" => "decimal",
+		"reward_deposit_enabled" => "boolean",
+		"reward_monthly_interest_enabled" => "boolean",
+		"reward_savings_milestone_enabled" => "boolean",
+		"reward_input_lead_enabled" => "boolean",
+	);
+	$updates = array();
+
+	foreach ($allowed as $key => $type) {
+		if (!array_key_exists($key, $settings)) {
+			continue;
+		}
+		if ($type === "decimal") {
+			if (!is_numeric($settings[$key]) || (float) $settings[$key] < 0) {
+				return array(
+					"success" => false,
+					"result" => "Ungueltiger Wert fuer " . $key . ".",
+				);
+			}
+			$updates[$key] = (string) (float) $settings[$key];
+		} else {
+			$updates[$key] = $settings[$key] ? "true" : "false";
+		}
+	}
+
+	return array(
+		"success" => true,
+		"result" => dbUpdateRewardConfig($updates),
+	);
+}
+
 function cashInOut($customerid, $transaction)
 {
 	$transaction["customer"] = (int) $customerid;
@@ -191,6 +244,60 @@ function createCustomer($customer)
 		"success" => is_numeric($result),
 		"result" => $result,
 		"fullname" => $customer["fullname"],
+	);
+}
+
+function updateCustomer($id, $realm, $customer)
+{
+	if (!isset($customer["fullname"]) || trim($customer["fullname"]) === "") {
+		return array("success" => false, "result" => "Name fehlt.");
+	}
+	if (!isset($customer["username"]) || trim($customer["username"]) === "") {
+		return array("success" => false, "result" => "Benutzername fehlt.");
+	}
+	if (!dbCheckUsernameAvailabilityForCustomer($customer["username"], $id)) {
+		return array("success" => false, "result" => "Benutzername ist bereits vergeben.");
+	}
+	$email = isset($customer["email"]) ? trim($customer["email"]) : "";
+	if (!dbCheckEmailAvailabilityForCustomer($email, $id)) {
+		return array("success" => false, "result" => "Google E-Mail ist bereits vergeben.");
+	}
+
+	$result = dbUpdateCustomer($id, $realm, array(
+		"fullname" => trim($customer["fullname"]),
+		"username" => trim($customer["username"]),
+		"email" => $email,
+		"display_name" => isset($customer["display_name"]) ? trim($customer["display_name"]) : "",
+		"userpassword" => isset($customer["userpassword"]) ? $customer["userpassword"] : "",
+	));
+
+	return array(
+		"success" => $result !== null,
+		"result" => $result !== null ? $result : "Kunde nicht gefunden.",
+	);
+}
+
+function softDeleteCustomer($id, $realm, $data)
+{
+	$customer = dbManagedCustomerById($id, $realm);
+	if (!$customer) {
+		return array("success" => false, "result" => "Kunde nicht gefunden.");
+	}
+	if (!isset($data["confirm"]) || $data["confirm"] !== $customer["fullname"]) {
+		return array("success" => false, "result" => "Bestaetigung stimmt nicht.");
+	}
+
+	return array(
+		"success" => true,
+		"result" => dbSoftDeleteCustomer($id, $realm),
+	);
+}
+
+function restoreCustomer($id, $realm)
+{
+	return array(
+		"success" => true,
+		"result" => dbRestoreCustomer($id, $realm),
 	);
 }
 
@@ -404,6 +511,29 @@ Flight::route("GET /customers", function() {
 	apiJson(customersAll($user["realm"]));
 });
 
+Flight::route("GET /boss/overview", function() {
+	$user = requireBossUser();
+	if (!$user) {
+		return;
+	}
+	apiJson(bossOverview($user["realm"]));
+});
+
+Flight::route("GET /boss/rewards", function() {
+	$user = requireBossUser();
+	if (!$user) {
+		return;
+	}
+	apiJson(bossRewards($user["realm"]));
+});
+
+Flight::route("PUT /boss/rewards/config", function() {
+	if (!requireBossUser()) {
+		return;
+	}
+	apiJson(updateRewardSettings(Flight::request()->data->getData()));
+});
+
 Flight::route("GET /customers/@realm:[0-9]+", function($realm) {
 	$user = requireBossUser();
 	if (!$user) {
@@ -441,6 +571,38 @@ Flight::route("POST /customers", function() {
 	$customer = Flight::request()->data->getData();
 	$customer["realm"] = $user["realm"];
 	apiJson(createCustomer($customer));
+});
+
+Flight::route("PUT /customers/@id:[0-9]+", function($id) {
+	$user = requireBossUser();
+	if (!$user) {
+		return;
+	}
+	apiJson(updateCustomer($id, $user["realm"], Flight::request()->data->getData()));
+});
+
+Flight::route("DELETE /customers/@id:[0-9]+", function($id) {
+	$user = requireBossUser();
+	if (!$user) {
+		return;
+	}
+	apiJson(softDeleteCustomer($id, $user["realm"], Flight::request()->data->getData()));
+});
+
+Flight::route("POST /customers/@id:[0-9]+/archive", function($id) {
+	$user = requireBossUser();
+	if (!$user) {
+		return;
+	}
+	apiJson(softDeleteCustomer($id, $user["realm"], Flight::request()->data->getData()));
+});
+
+Flight::route("POST /customers/@id:[0-9]+/restore", function($id) {
+	$user = requireBossUser();
+	if (!$user) {
+		return;
+	}
+	apiJson(restoreCustomer($id, $user["realm"]));
 });
 
 Flight::route("POST /customers/authenticate", function() {

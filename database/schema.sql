@@ -15,6 +15,7 @@ CREATE TABLE `customers` (
   `display_name` varchar(255) DEFAULT NULL,
   `boss` tinyint NOT NULL DEFAULT '0',
   `realm` int NOT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `username` (`username`),
   UNIQUE KEY `customers_google_sub_unique` (`google_sub`),
@@ -74,6 +75,15 @@ CREATE TABLE `reward_events` (
   KEY `reward_events_customer_opened` (`customer`, `opened_at`, `earned_at`),
   CONSTRAINT `reward_events_fk_customers` FOREIGN KEY (`customer`) REFERENCES `customers` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `reward_events_fk_transactions` FOREIGN KEY (`transaction_id`) REFERENCES `transactions` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3;
+CREATE TABLE `reward_config` (
+  `config_key` varchar(64) NOT NULL,
+  `config_value` varchar(255) NOT NULL,
+  `value_type` varchar(16) NOT NULL DEFAULT 'string',
+  `label` varchar(128) NOT NULL,
+  `description` varchar(255) NOT NULL,
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`config_key`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3;
 SET FOREIGN_KEY_CHECKS = 1;
 

@@ -1,6 +1,6 @@
 # Ba Ba Bank
 
-Ba Ba Bank is a small German-language web application for tracking family bank accounts. It lets children see their account balance and transaction history, while a boss/admin user can register customers, record deposits and payouts, and soft-delete transaction entries.
+Ba Ba Bank is a small German-language web application for tracking family bank accounts. It lets children see their account balance, transaction history, and reward chests, while a boss/admin user can manage customer accounts, record deposits and payouts, review bank-wide metrics, and tune reward settings.
 
 The application has been live for several years. This repository contains the legacy web app plus a dump of the live database under `database/` so future refresh work can be grounded in the current production data model.
 
@@ -53,13 +53,10 @@ Boss/admin flow:
 
 1. A boss user opens `/boss/`.
 2. Boss login requires an account whose `boss` value is high enough.
-3. The boss dashboard can:
-   - list customers in the same realm
-   - create new customer accounts
-   - record deposits
-   - record payouts
-   - list all transactions
-   - soft-delete transactions by setting `transactions.undone = 1`
+3. The boss interface has top-level views:
+   - Banking: bank-wide metrics, customer balances, deposits, payouts, and the transaction accordion
+   - Users: create users, edit names/usernames/passwords/Google email addresses, archive users, and restore archived users
+   - Rewards: edit reward settings and review unopened reward chests per user
 
 ## Database
 
@@ -69,7 +66,7 @@ Tables:
 
 - `customers`
   - account and login records
-  - important columns: `id`, `fullname`, `username`, `userpassword`, `google_sub`, `email`, `display_name`, `boss`, `realm`
+  - important columns: `id`, `fullname`, `username`, `userpassword`, `google_sub`, `email`, `display_name`, `boss`, `realm`, `deleted_at`
   - `username` is unique
   - `google_sub` and `email` are unique after applying the Google identity migration
 - `leases`
@@ -85,6 +82,8 @@ Tables:
 - `reward_events`
   - auditable reward queue rows shown as customer chests
   - links interest rewards to the transaction that created money
+- `reward_config`
+  - editable reward configuration, including rates, threshold steps, and enable/disable switches
 
 The schema has foreign keys from `leases.customer` and `transactions.customer` to `customers.id`, both with cascade delete/update.
 
@@ -107,6 +106,9 @@ Current migrations:
   - adds `kind` and `note` to `transactions`
   - creates `customer_reward_state` and `reward_events`
   - initializes current customers to their existing achievement state so live users do not receive retroactive milestone rewards
+- `database/migrations/20260603_002_add_boss_management.sql`
+  - adds `customers.deleted_at` for soft-deleting users
+  - creates and seeds `reward_config`
 
 `database/seed.sql` intentionally omits all rows from `leases`; sessions are runtime state and should not be restored from the historical live dump. It preserves live customers, password hashes, transaction history, balances, `approved`, and `undone` flags.
 
@@ -128,6 +130,10 @@ Read routes:
   - returns balance, pig count, incoming count, and outgoing count; non-boss users may only request their own ID
 - `GET /backend/customers`
   - boss-only; returns non-boss customers in the boss user's realm
+- `GET /backend/boss/overview`
+  - boss-only; returns bank-wide metrics and per-customer balances for the boss user's realm
+- `GET /backend/boss/rewards`
+  - boss-only; returns reward configuration, unopened reward counts per user, and recent reward events
 - `GET /backend/customers/{realm}`
   - boss-only compatibility route; ignores the client-supplied realm and uses the boss user's session realm
 - `GET /backend/customers/me/rewards/daily`
@@ -153,6 +159,16 @@ Write/auth routes:
 - `POST /backend/customers`
   - boss-only; creates a customer in the boss user's realm
   - expects `fullname`, `username`, `userpassword`
+- `PUT /backend/customers/{id}`
+  - boss-only; updates a customer in the boss user's realm
+  - expects `fullname`, `username`, optional `email`, `display_name`, `userpassword`
+- `POST /backend/customers/{id}/archive`
+  - boss-only; soft-deletes a customer by setting `customers.deleted_at`
+  - expects `confirm` to exactly match the customer's current full name
+- `POST /backend/customers/{id}/restore`
+  - boss-only; restores an archived customer
+- `PUT /backend/boss/rewards/config`
+  - boss-only; updates editable reward configuration values
 - `POST /backend/customers/authenticate`
   - compatibility route for `POST /backend/auth/login`
   - expects `username`, `userpassword`, optional `boss`
@@ -216,6 +232,8 @@ Optional variables:
 - `REWARD_DEPOSIT_ENABLED`, `REWARD_MONTHLY_INTEREST_ENABLED`, `REWARD_SAVINGS_MILESTONE_ENABLED`, `REWARD_INPUT_LEAD_ENABLED`
   - enable or disable individual reward families
 
+These reward environment variables are fallback defaults. Once `reward_config` exists, boss-managed reward settings are read from the database first.
+
 Google sign-in requires the production PHP runtime to be able to make outbound HTTPS requests to the Google public key endpoint. The verifier first tries `file_get_contents()` when `allow_url_fopen` is enabled, then falls back to cURL when the PHP cURL extension is available.
 
 Typical local setup:
@@ -264,12 +282,12 @@ Generated screenshots, traces, and reports are written under ignored test artifa
 
 Important issues to address during modernization:
 
-- Google sign-in links only existing customers by verified email; a boss/admin workflow is still needed to set customer email addresses conveniently.
+- Google sign-in links only existing customers by verified email. Bosses can now set that email address in the Users view.
 - Balances are stored on each transaction and also recalculated from transaction sums in places. This should be reviewed before changing transaction behavior.
 - The legacy `leases` table is still present for historical compatibility, but active authentication now uses PHP sessions.
 - The frontend still depends on CDN assets. Consider vendoring assets or adding an asset pipeline if offline/deploy reproducibility becomes important.
 - Reward chest images are currently copied from `misc/chests` without an image optimization step. Optimizing those PNGs would reduce first-load weight.
-- The current UI has been consolidated into shared Bootstrap/plain-JS screens. The next refresh work should focus on functionality and sharper boss workflows.
+- The current UI has been consolidated into shared Bootstrap/plain-JS screens. The next refresh work should focus on deeper banking workflows and finer reward design.
 
 ## Verification Status
 
@@ -279,6 +297,6 @@ Recent checks were run against `.env.test` with the PHP built-in server.
 - `node --check site/app.js` passed.
 - HTTP smoke checks returned 200 for `/`, `/customer/`, `/boss/`, `/styles.css`, and `/app.js`.
 - Password login, session cookies, customer KPI/transaction APIs, boss login, boss customer listing, and boss transaction listing were verified with temporary test users and then cleaned up.
-- `npm test` passed 30 Playwright checks across desktop Chromium and mobile Chrome, including banking KPI behavior, sortable transaction tables, reward events, daily reward queues, lazy monthly interest, and smoke screenshots.
-- A manual Playwright visual pass verified the mobile reward chest modal in closed and opened states.
+- `npm test` passed 40 Playwright checks across desktop Chromium and mobile Chrome, including banking KPI behavior, sortable transaction tables, boss management views, user archiving/restoring, reward configuration, reward events, daily reward queues, lazy monthly interest, and smoke screenshots.
+- A manual Playwright visual pass verified the boss Banking, Users, and Rewards views on desktop and the Rewards view on mobile.
 - Google token verification still requires a real Google ID token and PHP OpenSSL. The server-side Google auth path is present, but end-to-end Google sign-in should be rechecked in a browser after configuring a valid Google client.

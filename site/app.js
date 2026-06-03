@@ -2,6 +2,9 @@ const Bank = (() => {
 	let currentUser = null;
 	let customerTransactions = [];
 	let bossTransactions = [];
+	let bossOverviewData = null;
+	let bossRewardsData = null;
+	let pendingDeleteUser = null;
 	let rewardQueue = [];
 	let rewardIndex = 0;
 	let rewardOpened = false;
@@ -81,6 +84,11 @@ const Bank = (() => {
 			minimumFractionDigits: 2,
 			maximumFractionDigits: 2,
 		}).format(Math.abs(number));
+	}
+
+	function signedMoney(value) {
+		const number = Number(value || 0);
+		return `${number < 0 ? "-" : ""}${money(number)}`;
 	}
 
 	function rewardImage(variant, opened = false) {
@@ -545,6 +553,10 @@ const Bank = (() => {
 		qs("#deposit-form")?.addEventListener("submit", (event) => submitMovement(event, 1));
 		qs("#payout-form")?.addEventListener("submit", (event) => submitMovement(event, -1));
 		qs("#create-customer-form")?.addEventListener("submit", submitCreateCustomer);
+		qs("#delete-user-form")?.addEventListener("submit", submitDeleteUser);
+		qsa("[data-boss-view]").forEach((button) => {
+			button.addEventListener("click", () => showBossView(button.dataset.bossView));
+		});
 	}
 
 	async function renderBoss(user) {
@@ -554,7 +566,116 @@ const Bank = (() => {
 		show("#boss-app");
 		setText("#boss-name", user.fullname);
 		initSortControls("boss", renderBossTransactions);
-		await Promise.all([loadBossCustomers(), loadBossTransactions()]);
+		await loadBossData();
+		showBossView("operations");
+	}
+
+	async function loadBossData() {
+		await Promise.all([loadBossOverview(), loadBossCustomers(), loadBossTransactions(), loadBossRewards()]);
+	}
+
+	function showBossView(view) {
+		qsa(".boss-view").forEach((section) => {
+			section.classList.toggle("is-hidden", section.id !== `boss-view-${view}`);
+		});
+		qsa("[data-boss-view]").forEach((button) => {
+			button.classList.toggle("is-active", button.dataset.bossView === view);
+		});
+	}
+
+	async function loadBossOverview() {
+		const payload = await api("/boss/overview");
+		bossOverviewData = payload.result;
+		const metrics = bossOverviewData.metrics || {};
+		const activeCustomers = (bossOverviewData.customers || []).filter((customer) => !customer.deleted_at);
+		setText("#boss-total-assets", signedMoney(metrics.total_assets));
+		setText("#boss-active-customers", metrics.active_customers || 0);
+		setText("#boss-manual-in", metrics.manual_in || 0);
+		setText("#boss-manual-out", metrics.manual_out || 0);
+		setText("#boss-unopened-rewards", metrics.unopened_rewards || 0);
+		setText("#nav-banking-count", activeCustomers.length);
+		setText("#nav-users-count", activeCustomers.length);
+		setText("#nav-rewards-count", metrics.unopened_rewards || 0);
+		renderBossBalanceList(activeCustomers);
+		renderBossUsers();
+	}
+
+	function renderBossBalanceList(customers) {
+		const container = qs("#boss-balance-list");
+		if (!container) {
+			return;
+		}
+		if (!customers.length) {
+			container.innerHTML = `<div class="text-secondary small">Keine aktiven User.</div>`;
+			return;
+		}
+		container.innerHTML = customers
+			.map((customer) => `
+				<div class="balance-list-item">
+					<span>${escapeHtml(customer.fullname)}</span>
+					<strong>${signedMoney(customer.balance)}</strong>
+				</div>
+			`)
+			.join("");
+	}
+
+	function renderBossUsers() {
+		const container = qs("#boss-users-list");
+		if (!container || !bossOverviewData) {
+			return;
+		}
+		const users = bossOverviewData.customers || [];
+		if (!users.length) {
+			container.innerHTML = `<div class="p-4 text-secondary">Keine User.</div>`;
+			return;
+		}
+		container.innerHTML = users.map((user) => {
+			const archived = Boolean(user.deleted_at);
+			return `
+				<form class="user-management-item ${archived ? "is-archived" : ""}" data-user-form="${user.id}">
+					<div class="user-management-heading">
+						<div>
+							<div class="fw-bold">${escapeHtml(user.fullname)}</div>
+							<div class="text-secondary small">${escapeHtml(user.username)} · ${signedMoney(user.balance)}${archived ? " · archiviert" : ""}</div>
+						</div>
+						<div class="d-flex gap-2">
+							${archived ? `<button type="button" class="btn btn-sm btn-outline-primary" data-restore-user="${user.id}">${icon("arrow-counterclockwise")} Wiederherstellen</button>` : `<button type="button" class="btn btn-sm btn-outline-danger" data-delete-user="${user.id}">${icon("archive")} Archivieren</button>`}
+						</div>
+					</div>
+					<div class="user-management-grid">
+						<label class="form-floating">
+							<input name="fullname" class="form-control" value="${escapeHtml(user.fullname)}" placeholder="Name" ${archived ? "disabled" : ""}>
+							<span>Name</span>
+						</label>
+						<label class="form-floating">
+							<input name="username" class="form-control" value="${escapeHtml(user.username)}" placeholder="Username" ${archived ? "disabled" : ""}>
+							<span>Username</span>
+						</label>
+						<label class="form-floating">
+							<input name="email" type="email" class="form-control" value="${escapeHtml(user.email || "")}" placeholder="Google E-Mail" ${archived ? "disabled" : ""}>
+							<span>Google E-Mail</span>
+						</label>
+						<label class="form-floating">
+							<input name="userpassword" type="text" class="form-control" value="" placeholder="Neues Passwort" ${archived ? "disabled" : ""}>
+							<span>Neues Passwort</span>
+						</label>
+					</div>
+					<div class="d-flex justify-content-end">
+						<button type="submit" class="btn btn-sm btn-primary" ${archived ? "disabled" : ""}>Speichern</button>
+					</div>
+				</form>
+			`;
+		}).join("");
+
+		qsa("[data-user-form]").forEach((form) => {
+			form.addEventListener("submit", submitUpdateUser);
+		});
+		qsa("[data-delete-user]").forEach((button) => {
+			button.addEventListener("click", () => openDeleteUser(button.dataset.deleteUser));
+		});
+		qsa("[data-restore-user]").forEach((button) => {
+			button.addEventListener("click", () => restoreUser(button.dataset.restoreUser));
+		});
 	}
 
 	async function loadBossCustomers() {
@@ -565,7 +686,7 @@ const Bank = (() => {
 			for (const customer of payload.result) {
 				const option = document.createElement("option");
 				option.value = customer.id;
-				option.textContent = customer.fullname;
+				option.textContent = `${customer.fullname} (${signedMoney(customer.balance)})`;
 				select.appendChild(option);
 			}
 		}
@@ -619,7 +740,7 @@ const Bank = (() => {
 		});
 		form.reset();
 		toast(direction > 0 ? "Einzahlung gespeichert." : "Auszahlung gespeichert.", "success");
-		await loadBossTransactions();
+		await loadBossData();
 	}
 
 	async function submitCreateCustomer(event) {
@@ -641,7 +762,139 @@ const Bank = (() => {
 		});
 		form.reset();
 		toast("Kunde erstellt.", "success");
-		await loadBossCustomers();
+		await loadBossData();
+	}
+
+	async function submitUpdateUser(event) {
+		event.preventDefault();
+		const form = event.currentTarget;
+		const id = form.dataset.userForm;
+		const data = formData(form);
+		await api(`/customers/${id}`, {
+			method: "PUT",
+			body: JSON.stringify(data),
+		});
+		toast("User gespeichert.", "success");
+		await loadBossData();
+	}
+
+	function openDeleteUser(id) {
+		const user = (bossOverviewData?.customers || []).find((customer) => String(customer.id) === String(id));
+		if (!user) {
+			return;
+		}
+		pendingDeleteUser = user;
+		setText("#delete-user-name", user.fullname);
+		const confirm = qs("#delete-user-confirm");
+		if (confirm) {
+			confirm.value = "";
+		}
+		bootstrapModal("#delete-user-modal")?.show();
+	}
+
+	async function submitDeleteUser(event) {
+		event.preventDefault();
+		if (!pendingDeleteUser) {
+			return;
+		}
+		const data = formData(event.currentTarget);
+		await api(`/customers/${pendingDeleteUser.id}/archive`, {
+			method: "POST",
+			body: JSON.stringify({ confirm: data.confirm }),
+		});
+		bootstrapModal("#delete-user-modal")?.hide();
+		toast("User archiviert.", "success");
+		pendingDeleteUser = null;
+		await loadBossData();
+	}
+
+	async function restoreUser(id) {
+		await api(`/customers/${id}/restore`, { method: "POST" });
+		toast("User wiederhergestellt.", "success");
+		await loadBossData();
+	}
+
+	async function loadBossRewards() {
+		const payload = await api("/boss/rewards");
+		bossRewardsData = payload.result;
+		renderRewardConfig();
+		renderRewardOverview();
+	}
+
+	function renderRewardConfig() {
+		const form = qs("#reward-config-form");
+		if (!form || !bossRewardsData) {
+			return;
+		}
+		const configs = bossRewardsData.config || [];
+		form.innerHTML = configs.map((config) => {
+			const key = escapeHtml(config.config_key);
+			if (config.value_type === "boolean") {
+				const checked = config.config_value === "true" || config.config_value === "1";
+				return `
+					<label class="reward-config-row">
+						<span>
+							<strong>${escapeHtml(config.label)}</strong>
+							<small>${escapeHtml(config.description)}</small>
+						</span>
+						<input class="form-check-input" type="checkbox" name="${key}" ${checked ? "checked" : ""}>
+					</label>
+				`;
+			}
+			return `
+				<label class="form-floating">
+					<input class="form-control" type="number" min="0" step="0.0001" name="${key}" value="${escapeHtml(config.config_value)}" placeholder="${escapeHtml(config.label)}">
+					<span>${escapeHtml(config.label)}</span>
+					<small class="text-secondary d-block mt-1">${escapeHtml(config.description)}</small>
+				</label>
+			`;
+		}).join("") + `
+			<button type="submit" class="btn btn-primary d-inline-flex align-items-center justify-content-center gap-2">
+				${icon("sliders")}<span>Speichern</span>
+			</button>
+		`;
+		form.onsubmit = submitRewardConfig;
+	}
+
+	function renderRewardOverview() {
+		const unopened = qs("#reward-unopened-body");
+		const events = qs("#reward-events-body");
+		if (!bossRewardsData || !unopened || !events) {
+			return;
+		}
+		unopened.innerHTML = (bossRewardsData.unopened || []).map((row) => `
+			<tr>
+				<td>${escapeHtml(row.fullname)}</td>
+				<td><strong>${row.unopened_rewards}</strong></td>
+				<td>${signedMoney(row.unopened_amount)}</td>
+				<td>${escapeHtml(dateTime(row.latest_reward_at || ""))}</td>
+			</tr>
+		`).join("") || `<tr><td colspan="4" class="text-center text-secondary py-4">Keine offenen Kisten</td></tr>`;
+
+		events.innerHTML = (bossRewardsData.recent || []).map((event) => `
+			<tr>
+				<td>${escapeHtml(event.fullname)}</td>
+				<td>${escapeHtml(event.title)}</td>
+				<td>${signedMoney(event.amount)}</td>
+				<td>${event.opened_at ? "Geoeffnet" : "Offen"}</td>
+			</tr>
+		`).join("") || `<tr><td colspan="4" class="text-center text-secondary py-4">Keine Rewards</td></tr>`;
+	}
+
+	async function submitRewardConfig(event) {
+		event.preventDefault();
+		const form = event.currentTarget;
+		const data = formData(form);
+		qsa('input[type="checkbox"]', form).forEach((input) => {
+			data[input.name] = input.checked;
+		});
+		await api("/boss/rewards/config", {
+			method: "PUT",
+			body: JSON.stringify(data),
+		});
+		toast("Reward Settings gespeichert.", "success");
+		await loadBossRewards();
+		await loadBossOverview();
 	}
 
 	async function deleteTransaction(id) {
@@ -650,7 +903,7 @@ const Bank = (() => {
 		}
 		await api(`/transactions/${id}`, { method: "DELETE" });
 		toast("Transaktion geloescht.", "success");
-		await loadBossTransactions();
+		await loadBossData();
 	}
 
 	function init() {

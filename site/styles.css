@@ -198,6 +198,130 @@ body {
 	color: var(--bank-ink);
 }
 
+.eyebrow {
+	letter-spacing: 0;
+}
+
+.hero-subtitle {
+	font-size: clamp(2.25rem, 6vw, 3.25rem);
+	line-height: 1;
+	font-weight: 500;
+	letter-spacing: 0;
+}
+
+.boss-top-tabs {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.5rem;
+}
+
+.boss-tab {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.45rem;
+	border: 1px solid var(--bank-border);
+	border-radius: 6px;
+	background: var(--bank-surface);
+	color: var(--bank-text);
+	padding: 0.55rem 0.8rem;
+	font-weight: 700;
+	line-height: 1;
+}
+
+.boss-tab:hover,
+.boss-tab:focus-visible {
+	border-color: var(--bank-accent);
+	color: var(--bank-accent);
+}
+
+.boss-tab.is-active {
+	background: var(--bank-ink);
+	border-color: var(--bank-ink);
+	color: #fff;
+}
+
+.boss-tab-count {
+	min-width: 1.35rem;
+	height: 1.35rem;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: 999px;
+	background: rgba(32, 36, 51, 0.08);
+	color: inherit;
+	font-size: 0.75rem;
+}
+
+.boss-tab.is-active .boss-tab-count {
+	background: rgba(255, 255, 255, 0.16);
+}
+
+.balance-list {
+	display: grid;
+	gap: 0.65rem;
+}
+
+.balance-list-item {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 1rem;
+	padding-bottom: 0.65rem;
+	border-bottom: 1px solid rgba(32, 36, 51, 0.08);
+}
+
+.balance-list-item:last-child {
+	border-bottom: 0;
+	padding-bottom: 0;
+}
+
+.user-management-list {
+	display: grid;
+}
+
+.user-management-item {
+	padding: 1rem;
+	border-bottom: 1px solid var(--bank-border);
+}
+
+.user-management-item:last-child {
+	border-bottom: 0;
+}
+
+.user-management-item.is-archived {
+	background: rgba(32, 36, 51, 0.04);
+}
+
+.user-management-heading {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 1rem;
+	margin-bottom: 1rem;
+}
+
+.user-management-grid {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 0.75rem;
+	margin-bottom: 0.75rem;
+}
+
+.reward-config-row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 1rem;
+	border: 1px solid var(--bank-border);
+	border-radius: var(--bank-radius);
+	padding: 0.8rem;
+}
+
+.reward-config-row small {
+	display: block;
+	color: var(--bank-muted);
+}
+
 .btn-primary {
 	--bs-btn-bg: var(--bank-accent);
 	--bs-btn-border-color: var(--bank-accent);
@@ -600,5 +724,23 @@ body {
 
 	.reward-stage {
 		min-height: 14rem;
+	}
+
+	.boss-top-tabs {
+		width: 100%;
+	}
+
+	.boss-tab {
+		flex: 1 1 auto;
+		justify-content: center;
+	}
+
+	.user-management-heading {
+		align-items: flex-start;
+		flex-direction: column;
+	}
+
+	.user-management-grid {
+		grid-template-columns: 1fr;
 	}
 }

@@ -30,7 +30,7 @@ test.beforeAll(() => {
 require_once getcwd() . '/site/backend/database.php';
 $stamp = date('YmdHis') . '_' . random_int(1000, 9999);
 $password = 'CodexTest123!';
-$realm = 990003;
+$realm = random_int(990000, 999999);
 $customerUsername = 'banking_customer_' . $stamp;
 $hash = password_hash($password, PASSWORD_DEFAULT);
 dbExecute('INSERT INTO customers (fullname, username, userpassword, boss, realm) VALUES (:fullname, :username, :userpassword, 0, :realm)', array('fullname' => 'Banking Test Customer', 'username' => $customerUsername, 'userpassword' => $hash, 'realm' => $realm));

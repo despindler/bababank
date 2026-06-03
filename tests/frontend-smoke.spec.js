@@ -37,7 +37,7 @@ test.beforeAll(() => {
 require_once getcwd() . '/site/backend/database.php';
 $stamp = date('YmdHis') . '_' . random_int(1000, 9999);
 $password = 'CodexTest123!';
-$realm = 990002;
+$realm = random_int(990000, 999999);
 $customerUsername = 'pw_customer_' . $stamp;
 $bossUsername = 'pw_boss_' . $stamp;
 $hash = password_hash($password, PASSWORD_DEFAULT);
@@ -135,15 +135,41 @@ test("logs in and renders the boss dashboard", async ({ page }, testInfo) => {
 
 	await expect(page.getByRole("heading", { name: "Konten verwalten" })).toBeVisible();
 	await expect(page.locator("#boss-name")).toHaveText("Playwright Test Boss");
+	await expect(page.getByRole("button", { name: /Banking/ })).toBeVisible();
+	await expect(page.getByRole("button", { name: /Users/ })).toBeVisible();
+	await expect(page.getByRole("button", { name: /Rewards/ })).toBeVisible();
+	await expect(page.locator("#boss-total-assets")).toBeVisible();
+	await expect(page.getByRole("heading", { name: "Kontostand" })).toBeVisible();
 	await expect(page.getByRole("heading", { name: "Einzahlen" })).toBeVisible();
 	await expect(page.getByRole("heading", { name: "Auszahlen" })).toBeVisible();
-	await expect(page.getByRole("heading", { name: "Kunde", exact: true })).toBeVisible();
 	await expect(page.locator("#boss-transactions-panel")).toBeHidden();
 	await page.locator("#boss-transactions-heading .accordion-button").click();
 	await expect(page.locator("#boss-transactions-panel")).toBeVisible();
 	await expect(page.locator("#boss-transactions-body tr").first()).toBeVisible();
 	await page.waitForTimeout(350);
 	await page.screenshot({ path: screenshotPath(testInfo, "boss-dashboard"), fullPage: true });
+});
+
+test("switches boss top-level management views", async ({ page }) => {
+	await page.goto("/boss/");
+	await page.locator("#boss-username").fill(fixture.bossUsername);
+	await page.locator("#boss-password").fill(fixture.password);
+	await page.getByRole("button", { name: "Anmelden" }).click();
+
+	await expect(page.getByRole("heading", { name: "Konten verwalten" })).toBeVisible();
+	await page.getByRole("button", { name: /Users/ }).click();
+	await expect(page.locator("#boss-view-users")).toBeVisible();
+	await expect(page.getByRole("heading", { name: "User Management" })).toBeVisible();
+	await expect(page.locator('[data-user-form]')).toHaveCount(1);
+
+	await page.getByRole("button", { name: /Rewards/ }).click();
+	await expect(page.locator("#boss-view-rewards")).toBeVisible();
+	await expect(page.getByRole("heading", { name: "Reward Settings" })).toBeVisible();
+	await expect(page.locator("#reward-config-form input")).not.toHaveCount(0);
+
+	await page.getByRole("button", { name: /Banking/ }).click();
+	await expect(page.locator("#boss-view-operations")).toBeVisible();
+	await expect(page.getByRole("heading", { name: "Einzahlen" })).toBeVisible();
 });
 
 test("sorts the boss transaction table by header icons", async ({ page }) => {

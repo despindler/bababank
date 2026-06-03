@@ -4,18 +4,40 @@ require_once __DIR__ . "/database.php";
 
 function rewardEnabled($key)
 {
+	$config = dbRewardConfigValue("reward_" . strtolower($key) . "_enabled");
+	if ($config !== null && $config !== "") {
+		$config = strtolower(trim((string) $config));
+		return in_array($config, array("1", "true", "yes", "on"), true);
+	}
 	return envBool("REWARD_" . strtoupper($key) . "_ENABLED", true);
 }
 
 function rewardRate($key, $fallback = "ACHIEVEMENT_INTEREST_RATE")
 {
 	$specific = strtoupper($key) . "_REWARD_RATE";
+	$config = dbRewardConfigValue(strtolower($specific));
+	if ($config !== null && $config !== "") {
+		return (float) $config;
+	}
 	return envFloat($specific, envFloat($fallback, 0.0008));
 }
 
 function rewardMonthlyRate()
 {
+	$config = dbRewardConfigValue("monthly_interest_rate");
+	if ($config !== null && $config !== "") {
+		return (float) $config;
+	}
 	return envFloat("MONTHLY_INTEREST_RATE", 0.0008);
+}
+
+function rewardSavingsMilestoneStep()
+{
+	$config = dbRewardConfigValue("savings_milestone_step");
+	if ($config !== null && (float) $config > 0) {
+		return (float) $config;
+	}
+	return 100.0;
 }
 
 function rewardAmountForBalance($balance, $rate)
@@ -103,7 +125,8 @@ function rewardsEvaluateAchievementsForCustomer($customer)
 {
 	$customer = (int) $customer;
 	$balance = dbBalanceByCustomer($customer);
-	$currentSavingsLevel = (int) floor(max(0, $balance) / 100);
+	$step = rewardSavingsMilestoneStep();
+	$currentSavingsLevel = (int) floor(max(0, $balance) / $step);
 	$previousSavingsLevel = (int) dbRewardState($customer, "savings_level", 0);
 
 	if ($currentSavingsLevel > $previousSavingsLevel && rewardEnabled("SAVINGS_MILESTONE")) {
@@ -113,8 +136,8 @@ function rewardsEvaluateAchievementsForCustomer($customer)
 				$customer,
 				"savings_milestone",
 				"Level " . $level . " erreicht",
-				"Du hast " . ($level * 100) . " erreicht und bekommst Zins.",
-				(string) ($level * 100),
+				"Du hast " . moneylessNumber($level * $step) . " erreicht und bekommst Zins.",
+				(string) ($level * $step),
 				$rate,
 				"crystals"
 			);
@@ -138,6 +161,14 @@ function rewardsEvaluateAchievementsForCustomer($customer)
 		);
 	}
 	dbSetRewardState($customer, "input_lead_active", $inputLeadActive ? "1" : "0");
+}
+
+function moneylessNumber($value)
+{
+	if (floor($value) == $value) {
+		return (string) (int) $value;
+	}
+	return number_format((float) $value, 2, ".", "");
 }
 
 function rewardsAfterManualMovement($movement)

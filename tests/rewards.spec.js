@@ -21,7 +21,7 @@ test.beforeAll(() => {
 require_once getcwd() . '/site/backend/database.php';
 $stamp = date('YmdHis') . '_' . random_int(1000, 9999);
 $password = 'CodexTest123!';
-$realm = 990004;
+$realm = random_int(990000, 999999);
 $hash = password_hash($password, PASSWORD_DEFAULT);
 $customerUsername = 'reward_customer_' . $stamp;
 $monthlyUsername = 'reward_monthly_' . $stamp;
@@ -144,7 +144,7 @@ test("does not suppress rewards created after an earlier same-day empty check", 
 require_once getcwd() . '/site/backend/database.php';
 $stamp = date('YmdHis') . '_' . random_int(1000, 9999);
 $password = 'CodexTest123!';
-$realm = 990006;
+$realm = random_int(990000, 999999);
 $hash = password_hash($password, PASSWORD_DEFAULT);
 $customerUsername = 'late_reward_customer_' . $stamp;
 $bossUsername = 'late_reward_boss_' . $stamp;

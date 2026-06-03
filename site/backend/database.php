@@ -52,6 +52,7 @@ function dbTransactionsAll()
 		"SELECT t.id, t.customer, c.fullname, t.datetime, t.amount, t.balance, t.approved
 		FROM transactions t, customers c
 		WHERE t.customer = c.id
+		AND c.deleted_at IS NULL
 		AND t.undone = 0
 		AND t.approved = 1
 		ORDER BY t.customer ASC, t.datetime ASC, t.id ASC"
@@ -90,6 +91,7 @@ function dbTransactionsByCustomer($customer)
 		"SELECT t.id, t.customer, c.fullname, t.datetime, t.amount, t.balance, t.approved
 		FROM transactions t, customers c
 		WHERE t.customer = c.id
+		AND c.deleted_at IS NULL
 		AND t.undone = 0
 		AND t.approved = 1
 		AND c.id = :customer
@@ -141,12 +143,65 @@ function dbNofInAndOut($customer)
 function dbCustomersAll($realm)
 {
 	return dbFetchAll(
-		"SELECT c.id, c.fullname, c.email, c.display_name
+		"SELECT c.id, c.fullname, c.username, c.email, c.display_name,
+			COALESCE(SUM(CASE WHEN t.undone = 0 AND t.approved = 1 THEN t.amount ELSE 0 END), 0) AS balance
 		FROM customers c
+		LEFT JOIN transactions t ON t.customer = c.id
 		WHERE c.realm = :realm
 		AND c.boss = 0
+		AND c.deleted_at IS NULL
+		GROUP BY c.id, c.fullname, c.username, c.email, c.display_name
 		ORDER BY c.fullname",
 		array("realm" => (int) $realm)
+	);
+}
+
+function dbBossOverview($realm)
+{
+	$customers = dbFetchAll(
+		"SELECT c.id, c.fullname, c.username, c.email, c.display_name, c.deleted_at,
+			COALESCE(SUM(CASE WHEN t.undone = 0 AND t.approved = 1 THEN t.amount ELSE 0 END), 0) AS balance,
+			COALESCE(SUM(CASE WHEN t.undone = 0 AND t.approved = 1 AND t.kind = 'manual' AND t.amount >= 0 THEN 1 ELSE 0 END), 0) AS nofin,
+			COALESCE(SUM(CASE WHEN t.undone = 0 AND t.approved = 1 AND t.kind = 'manual' AND t.amount < 0 THEN 1 ELSE 0 END), 0) AS nofout,
+			COALESCE(open_rewards.open_count, 0) AS unopened_rewards
+		FROM customers c
+		LEFT JOIN transactions t ON t.customer = c.id
+		LEFT JOIN (
+			SELECT customer, COUNT(*) AS open_count
+			FROM reward_events
+			WHERE opened_at IS NULL
+			GROUP BY customer
+		) open_rewards ON open_rewards.customer = c.id
+		WHERE c.realm = :realm
+		AND c.boss = 0
+		GROUP BY c.id, c.fullname, c.username, c.email, c.display_name, c.deleted_at, open_rewards.open_count
+		ORDER BY c.deleted_at IS NULL DESC, c.fullname",
+		array("realm" => (int) $realm)
+	);
+
+	$active = array_values(array_filter($customers, function($customer) {
+		return $customer["deleted_at"] === null;
+	}));
+	$totalAssets = 0;
+	$totalIn = 0;
+	$totalOut = 0;
+	$totalUnopened = 0;
+	foreach ($active as $customer) {
+		$totalAssets += (float) $customer["balance"];
+		$totalIn += (int) $customer["nofin"];
+		$totalOut += (int) $customer["nofout"];
+		$totalUnopened += (int) $customer["unopened_rewards"];
+	}
+
+	return array(
+		"metrics" => array(
+			"active_customers" => count($active),
+			"total_assets" => round($totalAssets, 2),
+			"manual_in" => $totalIn,
+			"manual_out" => $totalOut,
+			"unopened_rewards" => $totalUnopened,
+		),
+		"customers" => $customers,
 	);
 }
 
@@ -296,6 +351,7 @@ function dbAuthenticateCustomer($username, $boss)
 		"SELECT c.id, c.fullname, c.username, c.userpassword, c.google_sub, c.email, c.display_name, c.boss, c.realm
 		FROM customers c
 		WHERE c.username = :username
+		AND c.deleted_at IS NULL
 		AND c.boss >= :boss",
 		array(
 			"username" => $username,
@@ -309,7 +365,8 @@ function dbCustomerByGoogleSub($googleSub)
 	return dbFetchOne(
 		"SELECT c.id, c.fullname, c.username, c.userpassword, c.google_sub, c.email, c.display_name, c.boss, c.realm
 		FROM customers c
-		WHERE c.google_sub = :google_sub",
+		WHERE c.google_sub = :google_sub
+		AND c.deleted_at IS NULL",
 		array("google_sub" => $googleSub)
 	);
 }
@@ -319,7 +376,8 @@ function dbCustomerByEmail($email)
 	return dbFetchOne(
 		"SELECT c.id, c.fullname, c.username, c.userpassword, c.google_sub, c.email, c.display_name, c.boss, c.realm
 		FROM customers c
-		WHERE c.email = :email",
+		WHERE c.email = :email
+		AND c.deleted_at IS NULL",
 		array("email" => $email)
 	);
 }
@@ -329,9 +387,136 @@ function dbCustomerById($id)
 	return dbFetchOne(
 		"SELECT c.id, c.fullname, c.username, c.userpassword, c.google_sub, c.email, c.display_name, c.boss, c.realm
 		FROM customers c
-		WHERE c.id = :id",
+		WHERE c.id = :id
+		AND c.deleted_at IS NULL",
 		array("id" => (int) $id)
 	);
+}
+
+function dbManagedCustomerById($id, $realm)
+{
+	return dbFetchOne(
+		"SELECT c.id, c.fullname, c.username, c.email, c.display_name, c.boss, c.realm, c.deleted_at
+		FROM customers c
+		WHERE c.id = :id
+		AND c.realm = :realm
+		AND c.boss = 0",
+		array(
+			"id" => (int) $id,
+			"realm" => (int) $realm,
+		)
+	);
+}
+
+function dbCheckUsernameAvailabilityForCustomer($username, $customer)
+{
+	$row = dbFetchOne(
+		"SELECT count(*) as unavailable
+		FROM customers c
+		WHERE c.username = :username
+		AND c.id <> :customer",
+		array(
+			"username" => $username,
+			"customer" => (int) $customer,
+		)
+	);
+
+	return $row["unavailable"] == 0;
+}
+
+function dbCheckEmailAvailabilityForCustomer($email, $customer)
+{
+	if ($email === null || $email === "") {
+		return true;
+	}
+
+	$row = dbFetchOne(
+		"SELECT count(*) as unavailable
+		FROM customers c
+		WHERE c.email = :email
+		AND c.id <> :customer",
+		array(
+			"email" => $email,
+			"customer" => (int) $customer,
+		)
+	);
+
+	return $row["unavailable"] == 0;
+}
+
+function dbUpdateCustomer($id, $realm, $customer)
+{
+	$current = dbManagedCustomerById($id, $realm);
+	if (!$current || $current["deleted_at"] !== null) {
+		return null;
+	}
+
+	$fields = array(
+		"fullname = :fullname",
+		"username = :username",
+		"email = :email",
+		"display_name = :display_name",
+	);
+	$params = array(
+		"id" => (int) $id,
+		"realm" => (int) $realm,
+		"fullname" => $customer["fullname"],
+		"username" => $customer["username"],
+		"email" => isset($customer["email"]) && $customer["email"] !== "" ? $customer["email"] : null,
+		"display_name" => isset($customer["display_name"]) && $customer["display_name"] !== "" ? $customer["display_name"] : null,
+	);
+
+	if (isset($customer["userpassword"]) && $customer["userpassword"] !== "") {
+		$fields[] = "userpassword = :userpassword";
+		$params["userpassword"] = password_hash($customer["userpassword"], PASSWORD_DEFAULT);
+	}
+
+	dbExecute(
+		"UPDATE customers
+		SET " . implode(", ", $fields) . "
+		WHERE id = :id
+		AND realm = :realm
+		AND boss = 0",
+		$params
+	);
+
+	return dbManagedCustomerById($id, $realm);
+}
+
+function dbSoftDeleteCustomer($id, $realm)
+{
+	$stmt = dbExecute(
+		"UPDATE customers
+		SET deleted_at = CURRENT_TIMESTAMP
+		WHERE id = :id
+		AND realm = :realm
+		AND boss = 0
+		AND deleted_at IS NULL",
+		array(
+			"id" => (int) $id,
+			"realm" => (int) $realm,
+		)
+	);
+
+	return $stmt->rowCount() > 0;
+}
+
+function dbRestoreCustomer($id, $realm)
+{
+	$stmt = dbExecute(
+		"UPDATE customers
+		SET deleted_at = NULL
+		WHERE id = :id
+		AND realm = :realm
+		AND boss = 0
+		AND deleted_at IS NOT NULL",
+		array(
+			"id" => (int) $id,
+			"realm" => (int) $realm,
+		)
+	);
+
+	return $stmt->rowCount() > 0;
 }
 
 function dbLinkGoogleIdentity($id, $googleSub, $email, $displayName)
@@ -455,6 +640,78 @@ function dbCheckAvailability($username)
 	);
 
 	return $row["unavailable"] == 0;
+}
+
+function dbRewardConfigValue($key)
+{
+	try {
+		$row = dbFetchOne(
+			"SELECT config_value
+			FROM reward_config
+			WHERE config_key = :config_key",
+			array("config_key" => $key)
+		);
+		return $row ? $row["config_value"] : null;
+	} catch (Exception $e) {
+		return null;
+	}
+}
+
+function dbRewardConfigAll()
+{
+	return dbFetchAll(
+		"SELECT config_key, config_value, value_type, label, description, updated_at
+		FROM reward_config
+		ORDER BY config_key"
+	);
+}
+
+function dbUpdateRewardConfig($configs)
+{
+	foreach ($configs as $key => $value) {
+		dbExecute(
+			"UPDATE reward_config
+			SET config_value = :config_value
+			WHERE config_key = :config_key",
+			array(
+				"config_key" => $key,
+				"config_value" => (string) $value,
+			)
+		);
+	}
+
+	return dbRewardConfigAll();
+}
+
+function dbRewardOverview($realm)
+{
+	return array(
+		"config" => dbRewardConfigAll(),
+		"unopened" => dbFetchAll(
+			"SELECT c.id AS customer, c.fullname, COUNT(r.id) AS unopened_rewards,
+				COALESCE(SUM(r.amount), 0) AS unopened_amount,
+				MAX(r.earned_at) AS latest_reward_at
+			FROM customers c
+			LEFT JOIN reward_events r ON r.customer = c.id AND r.opened_at IS NULL
+			WHERE c.realm = :realm
+			AND c.boss = 0
+			AND c.deleted_at IS NULL
+			GROUP BY c.id, c.fullname
+			ORDER BY unopened_rewards DESC, c.fullname",
+			array("realm" => (int) $realm)
+		),
+		"recent" => dbFetchAll(
+			"SELECT r.id, r.customer, c.fullname, r.reward_key, r.reward_type, r.chest_variant,
+				r.title, r.amount, r.balance_after, r.earned_at, r.opened_at
+			FROM reward_events r
+			INNER JOIN customers c ON c.id = r.customer
+			WHERE c.realm = :realm
+			AND c.boss = 0
+			ORDER BY r.earned_at DESC, r.id DESC
+			LIMIT 50",
+			array("realm" => (int) $realm)
+		),
+	);
 }
 
 /*

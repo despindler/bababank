@@ -54,147 +54,263 @@
 				</section>
 
 				<section id="boss-app" class="is-hidden">
-					<div class="d-flex flex-column flex-lg-row align-items-lg-end justify-content-between gap-3 mb-4">
+					<div class="d-flex flex-column flex-xl-row align-items-xl-end justify-content-between gap-3 mb-4">
 						<div>
-							<div class="d-flex flex-wrap gap-2 mb-3">
-								<span class="mini-badge"><i class="bi bi-shield-lock" aria-hidden="true"></i>Boss</span>
-								<span class="mini-badge"><i class="bi bi-people" aria-hidden="true"></i>Familienkonten</span>
+							<div class="eyebrow text-uppercase fw-bold text-danger small mb-2">Management</div>
+							<h1 class="hero-subtitle mb-1">Konten verwalten</h1>
+							<p class="text-secondary mb-0">Familienbank, Benutzer und Belohnungen.</p>
+						</div>
+						<div class="boss-top-tabs" role="tablist" aria-label="Boss Navigation">
+							<button type="button" class="boss-tab is-active" data-boss-view="operations">
+								<i class="bi bi-cash-coin" aria-hidden="true"></i><span>Banking</span><span id="nav-banking-count" class="boss-tab-count">0</span>
+							</button>
+							<button type="button" class="boss-tab" data-boss-view="users">
+								<i class="bi bi-people" aria-hidden="true"></i><span>Users</span><span id="nav-users-count" class="boss-tab-count">0</span>
+							</button>
+							<button type="button" class="boss-tab" data-boss-view="rewards">
+								<i class="bi bi-gift" aria-hidden="true"></i><span>Rewards</span><span id="nav-rewards-count" class="boss-tab-count">0</span>
+							</button>
+						</div>
+					</div>
+
+					<section id="boss-view-operations" class="boss-view">
+						<div class="row g-3 mb-4">
+							<div class="col-6 col-xl-3">
+								<div class="surface metric p-3 p-sm-4">
+									<div class="metric-label">Bank-Vermoegen</div>
+									<div class="metric-value fs-1 mt-3" id="boss-total-assets">0.00</div>
+								</div>
 							</div>
-							<h1 class="h2 mb-0">Konten verwalten</h1>
-						</div>
-					</div>
-
-					<div class="row g-3 mb-4">
-						<div class="col-12 col-lg-4">
-							<section class="surface activity-card p-3 p-sm-4 h-100">
-								<div class="d-flex align-items-center gap-2 mb-3">
-									<i class="bi bi-box-arrow-in-down-right text-success" aria-hidden="true"></i>
-									<h2 class="h5 mb-0">Einzahlen</h2>
+							<div class="col-6 col-xl-3">
+								<div class="surface metric p-3 p-sm-4 savings-card">
+									<div class="metric-label">Aktive Konten</div>
+									<div class="metric-value fs-1 mt-3" id="boss-active-customers">0</div>
 								</div>
-								<form id="deposit-form" class="vstack gap-3">
-									<div class="form-floating">
-										<select id="deposit-customer" name="customer" class="form-select" required>
-											<option selected disabled value="">Kunde waehlen</option>
-										</select>
-										<label for="deposit-customer">Kunde</label>
-									</div>
-									<div class="form-floating">
-										<input id="deposit-value" name="value" type="number" min="0.01" step="0.01" class="form-control" placeholder="10.50" required>
-										<label for="deposit-value">Betrag</label>
-									</div>
-									<button type="submit" class="btn btn-outline-primary d-inline-flex align-items-center justify-content-center gap-2">
-										<i class="bi bi-plus-lg" aria-hidden="true"></i>
-										<span>Speichern</span>
-									</button>
-								</form>
-							</section>
-						</div>
-
-						<div class="col-12 col-lg-4">
-							<section class="surface savings-card p-3 p-sm-4 h-100">
-								<div class="d-flex align-items-center gap-2 mb-3">
-									<i class="bi bi-box-arrow-up-right text-danger" aria-hidden="true"></i>
-									<h2 class="h5 mb-0">Auszahlen</h2>
+							</div>
+							<div class="col-6 col-xl-3">
+								<div class="surface metric p-3 p-sm-4 activity-card">
+									<div class="metric-label">Ein / Aus</div>
+									<div class="metric-value fs-1 mt-3"><span id="boss-manual-in">0</span><small class="fs-5 text-secondary"> / <span id="boss-manual-out">0</span></small></div>
 								</div>
-								<form id="payout-form" class="vstack gap-3">
-									<div class="form-floating">
-										<select id="payout-customer" name="customer" class="form-select" required>
-											<option selected disabled value="">Kunde waehlen</option>
-										</select>
-										<label for="payout-customer">Kunde</label>
-									</div>
-									<div class="form-floating">
-										<input id="payout-value" name="value" type="number" min="0.01" step="0.01" class="form-control" placeholder="10.50" required>
-										<label for="payout-value">Betrag</label>
-									</div>
-									<button type="submit" class="btn btn-outline-primary d-inline-flex align-items-center justify-content-center gap-2">
-										<i class="bi bi-dash-lg" aria-hidden="true"></i>
-										<span>Speichern</span>
-									</button>
-								</form>
-							</section>
-						</div>
-
-						<div class="col-12 col-lg-4">
-							<section class="surface p-3 p-sm-4 h-100">
-								<div class="d-flex align-items-center gap-2 mb-3">
-									<i class="bi bi-person-plus text-primary" aria-hidden="true"></i>
-									<h2 class="h5 mb-0">Kunde</h2>
+							</div>
+							<div class="col-6 col-xl-3">
+								<div class="surface metric p-3 p-sm-4">
+									<div class="metric-label">Offene Kisten</div>
+									<div class="metric-value fs-1 mt-3" id="boss-unopened-rewards">0</div>
 								</div>
-								<form id="create-customer-form" class="vstack gap-3">
-									<div class="form-floating">
-										<input id="new-fullname" name="fullname" type="text" class="form-control" placeholder="Vor- und Nachname" required>
-										<label for="new-fullname">Vor- und Nachname</label>
-									</div>
-									<div class="form-floating">
-										<input id="new-username" name="username" type="text" class="form-control" autocomplete="off" placeholder="Benutzername" required>
-										<label for="new-username">Benutzername</label>
-									</div>
-									<div class="form-floating">
-										<input id="new-password" name="userpassword" type="text" class="form-control" autocomplete="off" placeholder="Passwort" required>
-										<label for="new-password">Passwort</label>
-									</div>
-									<div class="form-floating">
-										<input id="new-email" name="email" type="email" class="form-control" autocomplete="off" placeholder="name@example.com">
-										<label for="new-email">Google E-Mail</label>
-									</div>
-									<button type="submit" class="btn btn-outline-primary d-inline-flex align-items-center justify-content-center gap-2">
-										<i class="bi bi-person-plus" aria-hidden="true"></i>
-										<span>Erstellen</span>
-									</button>
-								</form>
-							</section>
+							</div>
 						</div>
-					</div>
 
-					<div class="accordion transaction-accordion" id="boss-transactions-accordion">
-						<section class="accordion-item surface">
-							<h2 class="accordion-header" id="boss-transactions-heading">
-								<button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#boss-transactions-panel" aria-expanded="false" aria-controls="boss-transactions-panel">
-									<span class="d-flex align-items-center gap-3">
-										<i class="bi bi-receipt text-secondary fs-4" aria-hidden="true"></i>
-										<span>
-											<span class="d-block h5 mb-1">Transaktionen</span>
-											<span class="d-block text-secondary fw-normal small">Aktuelle Bewegungen aller Kunden.</span>
+						<div class="row g-3 mb-4">
+							<div class="col-12 col-lg-4">
+								<section class="surface activity-card p-3 p-sm-4 h-100">
+									<div class="d-flex align-items-center gap-2 mb-3">
+										<i class="bi bi-box-arrow-in-down-right text-success" aria-hidden="true"></i>
+										<h2 class="h5 mb-0">Einzahlen</h2>
+									</div>
+									<form id="deposit-form" class="vstack gap-3">
+										<div class="form-floating">
+											<select id="deposit-customer" name="customer" class="form-select" required>
+												<option selected disabled value="">Kunde waehlen</option>
+											</select>
+											<label for="deposit-customer">Kunde</label>
+										</div>
+										<div class="form-floating">
+											<input id="deposit-value" name="value" type="number" min="0.01" step="0.01" class="form-control" placeholder="10.50" required>
+											<label for="deposit-value">Betrag</label>
+										</div>
+										<button type="submit" class="btn btn-outline-primary d-inline-flex align-items-center justify-content-center gap-2">
+											<i class="bi bi-plus-lg" aria-hidden="true"></i>
+											<span>Speichern</span>
+										</button>
+									</form>
+								</section>
+							</div>
+
+							<div class="col-12 col-lg-4">
+								<section class="surface savings-card p-3 p-sm-4 h-100">
+									<div class="d-flex align-items-center gap-2 mb-3">
+										<i class="bi bi-box-arrow-up-right text-danger" aria-hidden="true"></i>
+										<h2 class="h5 mb-0">Auszahlen</h2>
+									</div>
+									<form id="payout-form" class="vstack gap-3">
+										<div class="form-floating">
+											<select id="payout-customer" name="customer" class="form-select" required>
+												<option selected disabled value="">Kunde waehlen</option>
+											</select>
+											<label for="payout-customer">Kunde</label>
+										</div>
+										<div class="form-floating">
+											<input id="payout-value" name="value" type="number" min="0.01" step="0.01" class="form-control" placeholder="10.50" required>
+											<label for="payout-value">Betrag</label>
+										</div>
+										<button type="submit" class="btn btn-outline-primary d-inline-flex align-items-center justify-content-center gap-2">
+											<i class="bi bi-dash-lg" aria-hidden="true"></i>
+											<span>Speichern</span>
+										</button>
+									</form>
+								</section>
+							</div>
+
+							<div class="col-12 col-lg-4">
+								<section class="surface p-3 p-sm-4 h-100">
+									<div class="d-flex align-items-center justify-content-between gap-2 mb-3">
+										<h2 class="h5 mb-0">Kontostand</h2>
+										<i class="bi bi-wallet2 text-secondary fs-4" aria-hidden="true"></i>
+									</div>
+									<div id="boss-balance-list" class="balance-list"></div>
+								</section>
+							</div>
+						</div>
+
+						<div class="accordion transaction-accordion" id="boss-transactions-accordion">
+							<section class="accordion-item surface">
+								<h2 class="accordion-header" id="boss-transactions-heading">
+									<button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#boss-transactions-panel" aria-expanded="false" aria-controls="boss-transactions-panel">
+										<span class="d-flex align-items-center gap-3">
+											<i class="bi bi-receipt text-secondary fs-4" aria-hidden="true"></i>
+											<span>
+												<span class="d-block h5 mb-1">Transaktionen</span>
+												<span class="d-block text-secondary fw-normal small">Aktuelle Bewegungen aller Kunden.</span>
+											</span>
 										</span>
-									</span>
-								</button>
-							</h2>
-							<div id="boss-transactions-panel" class="accordion-collapse collapse" aria-labelledby="boss-transactions-heading">
-								<div class="accordion-body p-0">
+									</button>
+								</h2>
+								<div id="boss-transactions-panel" class="accordion-collapse collapse" aria-labelledby="boss-transactions-heading">
+									<div class="accordion-body p-0">
+										<div class="table-responsive">
+											<table class="table table-striped align-middle mb-0">
+												<thead>
+													<tr>
+														<th scope="col"><span class="sortable-header">Kunde <button type="button" class="sort-button" data-sort-table="boss" data-sort-key="fullname" aria-label="Nach Kunde sortieren"><i class="bi bi-arrow-down-up" aria-hidden="true"></i></button></span></th>
+														<th scope="col"><span class="sortable-header">Wann <button type="button" class="sort-button" data-sort-table="boss" data-sort-key="datetime" aria-label="Nach Wann sortieren"><i class="bi bi-arrow-down-up" aria-hidden="true"></i></button></span></th>
+														<th scope="col"><span class="sortable-header"><i class="bi bi-plus-slash-minus" aria-hidden="true"></i><button type="button" class="sort-button" data-sort-table="boss" data-sort-key="type" aria-label="Nach Typ sortieren"><i class="bi bi-arrow-down-up" aria-hidden="true"></i></button></span></th>
+														<th scope="col"><span class="sortable-header">Betrag <button type="button" class="sort-button" data-sort-table="boss" data-sort-key="amount" aria-label="Nach Betrag sortieren"><i class="bi bi-arrow-down-up" aria-hidden="true"></i></button></span></th>
+														<th scope="col"><span class="sortable-header">Vermoegen <button type="button" class="sort-button" data-sort-table="boss" data-sort-key="balance" aria-label="Nach Vermoegen sortieren"><i class="bi bi-arrow-down-up" aria-hidden="true"></i></button></span></th>
+														<th scope="col"><span class="sortable-header">Loeschen <button type="button" class="sort-button" data-sort-table="boss" data-sort-key="id" aria-label="Nach Loeschen sortieren"><i class="bi bi-arrow-down-up" aria-hidden="true"></i></button></span></th>
+													</tr>
+												</thead>
+												<tbody id="boss-transactions-body"></tbody>
+											</table>
+										</div>
+									</div>
+								</div>
+							</section>
+						</div>
+					</section>
+
+					<section id="boss-view-users" class="boss-view is-hidden">
+						<div class="row g-3">
+							<div class="col-12 col-xl-4">
+								<section class="surface p-3 p-sm-4 h-100">
+									<div class="d-flex align-items-center gap-2 mb-3">
+										<i class="bi bi-person-plus text-primary" aria-hidden="true"></i>
+										<h2 class="h5 mb-0">Neuer User</h2>
+									</div>
+									<form id="create-customer-form" class="vstack gap-3">
+										<div class="form-floating">
+											<input id="new-fullname" name="fullname" type="text" class="form-control" placeholder="Vor- und Nachname" required>
+											<label for="new-fullname">Vor- und Nachname</label>
+										</div>
+										<div class="form-floating">
+											<input id="new-username" name="username" type="text" class="form-control" autocomplete="off" placeholder="Benutzername" required>
+											<label for="new-username">Benutzername</label>
+										</div>
+										<div class="form-floating">
+											<input id="new-password" name="userpassword" type="text" class="form-control" autocomplete="off" placeholder="Passwort" required>
+											<label for="new-password">Passwort</label>
+										</div>
+										<div class="form-floating">
+											<input id="new-email" name="email" type="email" class="form-control" autocomplete="off" placeholder="name@example.com">
+											<label for="new-email">Google E-Mail</label>
+										</div>
+										<button type="submit" class="btn btn-outline-primary d-inline-flex align-items-center justify-content-center gap-2">
+											<i class="bi bi-person-plus" aria-hidden="true"></i>
+											<span>Erstellen</span>
+										</button>
+									</form>
+								</section>
+							</div>
+							<div class="col-12 col-xl-8">
+								<section class="surface p-0 overflow-hidden">
+									<div class="p-3 p-sm-4 border-bottom">
+										<h2 class="h5 mb-1">User Management</h2>
+										<p class="text-secondary mb-0 small">Name, Passwort und Google E-Mail bearbeiten.</p>
+									</div>
+									<div id="boss-users-list" class="user-management-list"></div>
+								</section>
+							</div>
+						</div>
+					</section>
+
+					<section id="boss-view-rewards" class="boss-view is-hidden">
+						<div class="row g-3">
+							<div class="col-12 col-xl-5">
+								<section class="surface p-3 p-sm-4">
+									<h2 class="h5 mb-3">Reward Settings</h2>
+									<form id="reward-config-form" class="vstack gap-3"></form>
+								</section>
+							</div>
+							<div class="col-12 col-xl-7">
+								<section class="surface p-0 overflow-hidden mb-3">
+									<div class="p-3 p-sm-4 border-bottom">
+										<h2 class="h5 mb-1">Offene Kisten</h2>
+										<p class="text-secondary mb-0 small">Noch nicht geoeffnete Rewards pro User.</p>
+									</div>
 									<div class="table-responsive">
 										<table class="table table-striped align-middle mb-0">
 											<thead>
-												<tr>
-													<th scope="col">
-														<span class="sortable-header">Kunde <button type="button" class="sort-button" data-sort-table="boss" data-sort-key="fullname" aria-label="Nach Kunde sortieren"><i class="bi bi-arrow-down-up" aria-hidden="true"></i></button></span>
-													</th>
-													<th scope="col">
-														<span class="sortable-header">Wann <button type="button" class="sort-button" data-sort-table="boss" data-sort-key="datetime" aria-label="Nach Wann sortieren"><i class="bi bi-arrow-down-up" aria-hidden="true"></i></button></span>
-													</th>
-													<th scope="col">
-														<span class="sortable-header"><i class="bi bi-plus-slash-minus" aria-hidden="true"></i><button type="button" class="sort-button" data-sort-table="boss" data-sort-key="type" aria-label="Nach Typ sortieren"><i class="bi bi-arrow-down-up" aria-hidden="true"></i></button></span>
-													</th>
-													<th scope="col">
-														<span class="sortable-header">Betrag <button type="button" class="sort-button" data-sort-table="boss" data-sort-key="amount" aria-label="Nach Betrag sortieren"><i class="bi bi-arrow-down-up" aria-hidden="true"></i></button></span>
-													</th>
-													<th scope="col">
-														<span class="sortable-header">Vermoegen <button type="button" class="sort-button" data-sort-table="boss" data-sort-key="balance" aria-label="Nach Vermoegen sortieren"><i class="bi bi-arrow-down-up" aria-hidden="true"></i></button></span>
-													</th>
-													<th scope="col">
-														<span class="sortable-header">Loeschen <button type="button" class="sort-button" data-sort-table="boss" data-sort-key="id" aria-label="Nach Loeschen sortieren"><i class="bi bi-arrow-down-up" aria-hidden="true"></i></button></span>
-													</th>
-												</tr>
+												<tr><th>User</th><th>Offen</th><th>Wert</th><th>Letzte Kiste</th></tr>
 											</thead>
-											<tbody id="boss-transactions-body"></tbody>
+											<tbody id="reward-unopened-body"></tbody>
 										</table>
 									</div>
-								</div>
+								</section>
+								<section class="surface p-0 overflow-hidden">
+									<div class="p-3 p-sm-4 border-bottom">
+										<h2 class="h5 mb-1">Reward Log</h2>
+										<p class="text-secondary mb-0 small">Letzte Belohnungen im Realm.</p>
+									</div>
+									<div class="table-responsive">
+										<table class="table table-striped align-middle mb-0">
+											<thead>
+												<tr><th>User</th><th>Reward</th><th>Betrag</th><th>Status</th></tr>
+											</thead>
+											<tbody id="reward-events-body"></tbody>
+										</table>
+									</div>
+								</section>
 							</div>
-						</section>
-					</div>
+						</div>
+					</section>
 				</section>
 			</main>
+		</div>
+
+		<div class="modal fade" id="delete-user-modal" tabindex="-1" aria-labelledby="delete-user-title" aria-hidden="true">
+			<div class="modal-dialog">
+				<div class="modal-content">
+					<div class="modal-header">
+						<h1 class="modal-title fs-5" id="delete-user-title">User archivieren</h1>
+						<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schliessen"></button>
+					</div>
+					<form id="delete-user-form">
+						<div class="modal-body">
+							<p class="mb-2">Zum Archivieren bitte den Namen exakt eingeben:</p>
+							<p id="delete-user-name" class="fw-bold"></p>
+							<div class="form-floating">
+								<input id="delete-user-confirm" name="confirm" class="form-control" autocomplete="off" placeholder="Name" required>
+								<label for="delete-user-confirm">Bestaetigung</label>
+							</div>
+							<p class="text-secondary small mt-3 mb-0">Archivierte User koennen sich nicht mehr anmelden. Transaktionen bleiben erhalten.</p>
+						</div>
+						<div class="modal-footer">
+							<button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
+							<button type="submit" class="btn btn-danger">Archivieren</button>
+						</div>
+					</form>
+				</div>
+			</div>
 		</div>
 
 		<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
