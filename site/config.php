@@ -71,20 +71,40 @@ function requiredEnvValue($key)
 	return $value;
 }
 
+$appRoot = __DIR__;
 $projectRoot = dirname(__DIR__);
+$envRoots = array_values(array_unique(array($appRoot, $projectRoot)));
 $envFile = envValue('BABABANK_ENV_FILE');
 
 if ($envFile !== null && $envFile !== '') {
 	if (!preg_match('/^([A-Za-z]:)?[\/\\\\]/', $envFile)) {
-		$envFile = $projectRoot . DIRECTORY_SEPARATOR . $envFile;
+		foreach ($envRoots as $root) {
+			$candidate = $root . DIRECTORY_SEPARATOR . $envFile;
+			if (is_readable($candidate)) {
+				$envFile = $candidate;
+				break;
+			}
+		}
 	}
 	loadEnvFile($envFile, true);
 } else {
-	loadEnvFile($projectRoot . DIRECTORY_SEPARATOR . '.env');
+	foreach ($envRoots as $root) {
+		$candidate = $root . DIRECTORY_SEPARATOR . '.env';
+		if (is_readable($candidate)) {
+			loadEnvFile($candidate);
+			break;
+		}
+	}
 
 	$environment = envValue('BABABANK_ENV', envValue('APP_ENV'));
 	if ($environment !== null && $environment !== '') {
-		loadEnvFile($projectRoot . DIRECTORY_SEPARATOR . '.env.' . $environment, true);
+		foreach ($envRoots as $root) {
+			$candidate = $root . DIRECTORY_SEPARATOR . '.env.' . $environment;
+			if (is_readable($candidate)) {
+				loadEnvFile($candidate, true);
+				break;
+			}
+		}
 	}
 }
 

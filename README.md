@@ -170,6 +170,8 @@ Required variables:
 - `DB_USER`
 - `DB_PASSWORD`
 
+`site/config.php` looks for `.env` next to `site/config.php` first, then one directory above it. This supports both local development, where `.env` usually lives in the repository root, and production hosting where the deployed web root is the contents of `site/` and `.env` must sit beside `config.php`.
+
 Optional variables:
 
 - `APP_ENV` or `BABABANK_ENV`
