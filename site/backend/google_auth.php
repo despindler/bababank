@@ -142,7 +142,7 @@ class GoogleIdTokenVerifier
 			throw new GoogleAuthFailedException("GOOGLE_KEYS_UNAVAILABLE", "Google JWKS URL is not configured.");
 		}
 
-		$json = @file_get_contents($this->jwksUrl);
+		$json = $this->fetchUrl($this->jwksUrl);
 		if ($json === false) {
 			throw new GoogleAuthFailedException("GOOGLE_KEYS_UNAVAILABLE", "Google public keys are unavailable.");
 		}
@@ -153,6 +153,43 @@ class GoogleIdTokenVerifier
 		}
 
 		return $jwks;
+	}
+
+	private function fetchUrl($url)
+	{
+		if (ini_get("allow_url_fopen")) {
+			$context = stream_context_create(array(
+				"http" => array(
+					"timeout" => 5,
+					"header" => "User-Agent: BaBaBank/1.0\r\n",
+				),
+			));
+			$response = @file_get_contents($url, false, $context);
+			if ($response !== false) {
+				return $response;
+			}
+		}
+
+		if (function_exists("curl_init")) {
+			$curl = curl_init($url);
+			curl_setopt_array($curl, array(
+				CURLOPT_RETURNTRANSFER => true,
+				CURLOPT_CONNECTTIMEOUT => 5,
+				CURLOPT_TIMEOUT => 10,
+				CURLOPT_USERAGENT => "BaBaBank/1.0",
+				CURLOPT_SSL_VERIFYPEER => true,
+				CURLOPT_SSL_VERIFYHOST => 2,
+			));
+			$response = curl_exec($curl);
+			$status = curl_getinfo($curl, CURLINFO_RESPONSE_CODE);
+			curl_close($curl);
+
+			if ($response !== false && $status >= 200 && $status < 300) {
+				return $response;
+			}
+		}
+
+		return false;
 	}
 
 	private function jwkToPem($key)

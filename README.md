@@ -189,6 +189,8 @@ Optional variables:
 - `GOOGLE_JWKS_URL`
   - Google public key endpoint; defaults to `https://www.googleapis.com/oauth2/v3/certs`
 
+Google sign-in requires the production PHP runtime to be able to make outbound HTTPS requests to the Google public key endpoint. The verifier first tries `file_get_contents()` when `allow_url_fopen` is enabled, then falls back to cURL when the PHP cURL extension is available.
+
 Typical local setup:
 
 1. Create a local MariaDB/MySQL database.
