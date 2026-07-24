@@ -346,6 +346,8 @@ The Playwright config starts the PHP built-in server through `tools/php-dev-serv
 npm run dev:test
 ```
 
+The three HTML entry points use one shared query-string version for the local `styles.css` and `app.js` assets. Whenever either file changes, bump that version consistently in `site/index.html`, `site/customer/index.html`, and `site/boss/index.html`. The frontend smoke suite verifies that all entry points reference the same version so mobile and desktop browsers fetch the matching CSS and JavaScript after a deployment.
+
 Generated screenshots, traces, and reports are written under ignored test artifact directories.
 
 ## Refresh Notes
@@ -370,7 +372,7 @@ Recent checks were run against `.env.test` with the PHP built-in server.
 - `npm run test:unit` passed 20 deterministic monthly-interest domain tests.
 - `npm run test:db` passed 22 real-MySQL checks, including schema constraints, projection states, exact cutoff balance selection, three-month compounding, per-period rates and chests, zero settlements, archive gaps, rollback, concurrent processing, idempotency, dry-run, scheduler boundaries, customer failure continuation, structured CLI failures, advisory locking, and protected system transactions.
 - `npm run test:migration` passed the single monthly-interest migration against both a synthetic pre-change fixture and a disposable restore of the current live dump, including cent-preserving conversion, explicit August 2026 cutover, rate and eligibility initialization, and legacy-state removal.
-- `npm run test:smoke` passed 62 functional Playwright checks across desktop Chromium and mobile Chrome, including the July-to-August cutover forecast, authenticated projections, historical-rate catch-up, disabled settlement, idempotency, three chronological chests, the pressure/burst opening sequence, duplicate-click suppression, reduced motion, and refreshed balances/transactions.
+- `npm run test:smoke` passed 66 functional Playwright checks across desktop Chromium and mobile Chrome, including the July-to-August cutover forecast, authenticated projections, explicit KPI failure presentation, consistent asset cache-busting, historical-rate catch-up, disabled settlement, idempotency, three chronological chests, the pressure/burst opening sequence, duplicate-click suppression, reduced motion, and refreshed balances/transactions.
 - `npm run test:visual` passed 8 committed component comparisons twice consecutively across desktop Chromium and mobile Chrome.
 - A manual Playwright visual pass verified the boss Banking, Users, and Rewards views on desktop and the Rewards view on mobile.
 - Google token verification still requires a real Google ID token and PHP OpenSSL. The server-side Google auth path is present, but end-to-end Google sign-in should be rechecked in a browser after configuring a valid Google client.

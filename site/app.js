@@ -420,43 +420,57 @@ const Bank = (() => {
 	}
 
 	async function initCustomer() {
+		let user;
 		try {
-			const user = await me();
-			if (!user) {
-				show("#signed-out");
-				return;
-			}
-			currentUser = user;
-			setText("#customer-name", user.fullname);
-			show("#customer-app-nav");
-			show("#customer-app");
-			initSortControls("customer", renderCustomerTransactions);
-			initRewardModal();
-			await loadCustomerKpis();
-			await loadCustomerTransactions();
-			await loadDailyRewards();
+			user = await me();
 		} catch (error) {
 			show("#signed-out");
+			return;
+		}
+		if (!user) {
+			show("#signed-out");
+			return;
 		}
 
+		currentUser = user;
+		setText("#customer-name", user.fullname);
+		show("#customer-app-nav");
+		show("#customer-app");
+		initSortControls("customer", renderCustomerTransactions);
+		initRewardModal();
 		qs("#logout-button")?.addEventListener("click", () => logout("../"));
 		qs("#twint-amount")?.addEventListener("input", updateTwintLink);
 		qs("#twint-link")?.addEventListener("click", () => bootstrapModal("#twint-modal")?.hide());
+
+		const results = await Promise.allSettled([
+			loadCustomerKpis(),
+			loadCustomerTransactions(),
+			loadDailyRewards(),
+		]);
+		const failure = results.find((result) => result.status === "rejected");
+		if (failure) {
+			toast(failure.reason?.message || "Einige Kontodaten konnten nicht geladen werden.", "danger");
+		}
 	}
 
 	async function loadCustomerKpis() {
-		const payload = await api("/customers/me/kpis");
-		const kpis = payload.result;
-		setText("#kpi-balance", money(kpis.balance));
-		setText("#kpi-pigs", kpis.nofpigs);
-		setText("#kpi-ins", kpis.nofins);
-		setText("#kpi-outs", kpis.nofouts);
-		renderMonthlyInterest(kpis.monthly_interest);
-		qs("#kpi-balance-sign").innerHTML = Number(kpis.balance) < 0 ? icon("dash-lg") : icon("plus-lg");
-		const progress = qs("#savings-progress");
-		if (progress) {
-			const balance = Math.max(0, Number(kpis.balance) || 0);
-			progress.style.setProperty("--progress", `${Math.min(100, balance % 100)}%`);
+		try {
+			const payload = await api("/customers/me/kpis");
+			const kpis = payload.result;
+			setText("#kpi-balance", money(kpis.balance));
+			setText("#kpi-pigs", kpis.nofpigs);
+			setText("#kpi-ins", kpis.nofins);
+			setText("#kpi-outs", kpis.nofouts);
+			renderMonthlyInterest(kpis.monthly_interest);
+			qs("#kpi-balance-sign").innerHTML = Number(kpis.balance) < 0 ? icon("dash-lg") : icon("plus-lg");
+			const progress = qs("#savings-progress");
+			if (progress) {
+				const balance = Math.max(0, Number(kpis.balance) || 0);
+				progress.style.setProperty("--progress", `${Math.min(100, balance % 100)}%`);
+			}
+		} catch (error) {
+			renderMonthlyInterest(null);
+			throw error;
 		}
 	}
 

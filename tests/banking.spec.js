@@ -116,6 +116,28 @@ test("forecasts the August cutover period while the current month is July", asyn
 	});
 });
 
+test("replaces the loading forecast when the KPI request fails", async ({ page }) => {
+	await page.route("**/backend/customers/me/kpis", async (route) => {
+		await route.fulfill({
+			status: 500,
+			json: {
+				success: false,
+				result: "KPI-Testfehler.",
+			},
+		});
+	});
+	await loginCustomer(page);
+
+	const card = page.locator("#monthly-interest-card");
+	await expect(page.locator("#customer-app")).toBeVisible();
+	await expect(page.locator("#signed-out")).toBeHidden();
+	await expect(card).toHaveAttribute("data-state", "error");
+	await expect(page.locator("#monthly-interest-rate")).toHaveText("Vorschau nicht verfügbar");
+	await expect(page.locator("#monthly-interest-posting")).toHaveText("Die Zinsvorschau konnte nicht geladen werden.");
+	await expect(page.locator("#monthly-interest-explanation")).toHaveText("Bitte versuche es später noch einmal.");
+	await expect(page.locator("#app-toast")).toContainText("KPI-Testfehler.");
+});
+
 test("prevents a customer from reading another customer projection", async ({ request }) => {
 	await request.post("/backend/auth/login", {
 		data: {

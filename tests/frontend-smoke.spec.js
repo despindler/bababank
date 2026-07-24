@@ -77,6 +77,22 @@ test("renders the public login page", async ({ page }, testInfo) => {
 	await page.screenshot({ path: screenshotPath(testInfo, "home"), fullPage: true });
 });
 
+test("uses one cache-busting version for local CSS and JavaScript", async ({ page }) => {
+	const versions = [];
+	for (const path of ["/", "/customer/", "/boss/"]) {
+		await page.goto(path);
+		const stylesheet = await page.locator('link[href*="styles.css"]').getAttribute("href");
+		const script = await page.locator('script[src*="app.js"]').getAttribute("src");
+		expect(stylesheet).toMatch(/styles\.css\?v=[A-Za-z0-9.-]+$/);
+		expect(script).toMatch(/app\.js\?v=[A-Za-z0-9.-]+$/);
+		const stylesheetVersion = stylesheet.split("?v=")[1];
+		const scriptVersion = script.split("?v=")[1];
+		expect(stylesheetVersion).toBe(scriptVersion);
+		versions.push(stylesheetVersion);
+	}
+	expect(new Set(versions).size).toBe(1);
+});
+
 test("renders the signed-out customer state", async ({ page }, testInfo) => {
 	await page.goto("/customer/");
 	await expect(page.getByRole("heading", { name: "Nicht angemeldet" })).toBeVisible();

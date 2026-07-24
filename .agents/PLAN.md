@@ -52,6 +52,11 @@ Primary guidance: Read `.agents/CODEX.md` before starting or resuming work.
   - Existing customers can therefore see the August 2026 estimate during July, with a September 1 posting date, without making July interest-bearing.
   - Preserved unavailable behavior for customers with no current or future eligibility, disabled-rate behavior, and zero/negative balance estimates.
   - Verification: PHP and JavaScript syntax passed; 20 unit tests, 22 real-MySQL tests, 62 functional Playwright checks, and 8 visual comparisons passed.
+- Frontend cache and forecast failure hardening: Completed on 2026-07-24.
+  - Versioned the shared local CSS and JavaScript references consistently across the public, customer, and boss entry points so a deployment does not leave mobile browsers using stale chest-animation or dashboard code.
+  - Separated authentication failure from customer dashboard data failures, loaded independent dashboard resources concurrently, and replaced the indefinite forecast loading placeholder with an explicit retry-later error state when the KPI request fails.
+  - Added desktop/mobile smoke coverage for asset-version consistency and the authenticated KPI failure path.
+  - Verification: JavaScript syntax and focused desktop/mobile checks passed; 66 functional Playwright checks and 8 visual comparisons passed across desktop Chromium and mobile Chrome.
 - Implementation complete. Production migration and scheduler activation remain rollout operations and were not performed by this repository work.
 
 ## 1. Objective
