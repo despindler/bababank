@@ -22,13 +22,39 @@ function migrationTestFetchOne(PDO $db, $sql)
 	return $row === false ? null : $row;
 }
 
+function migrationTestMoneySnapshot(PDO $db)
+{
+	$snapshot = array();
+	$tables = array(
+		"transactions" => array("amount", "balance"),
+		"reward_events" => array("amount", "balance_before", "balance_after"),
+	);
+
+	foreach ($tables as $table => $columns) {
+		$rows = $db->query(
+			"SELECT id, " . implode(", ", $columns) . " FROM " . $table . " ORDER BY id"
+		)->fetchAll();
+		$snapshot[$table] = array_map(function($row) use ($columns) {
+			$normalized = array("id" => (int) $row["id"]);
+			foreach ($columns as $column) {
+				$normalized[$column] = number_format((float) $row[$column], 2, ".", "");
+			}
+			return $normalized;
+		}, $rows);
+	}
+
+	return $snapshot;
+}
+
 if (!preg_match('/^[A-Za-z0-9_]+$/', DB_NAME) || !preg_match('/(^test_|_test$)/i', DB_NAME)) {
 	fwrite(STDERR, "Configured database is not safely test-scoped." . PHP_EOL);
 	exit(1);
 }
 
 $migrationDatabase = DB_NAME . "_migration";
+$liveMigrationDatabase = DB_NAME . "_live_migration";
 $quotedMigrationDatabase = "`" . $migrationDatabase . "`";
+$quotedLiveMigrationDatabase = "`" . $liveMigrationDatabase . "`";
 $options = array(
 	PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
 	PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
@@ -36,10 +62,18 @@ $options = array(
 );
 $server = new PDO("mysql:host=" . DB_HOST . ";charset=utf8mb4", DB_USER, DB_PASSWORD, $options);
 $server->exec("DROP DATABASE IF EXISTS " . $quotedMigrationDatabase);
+$server->exec("DROP DATABASE IF EXISTS " . $quotedLiveMigrationDatabase);
 $server->exec("CREATE DATABASE " . $quotedMigrationDatabase . " CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
+$server->exec("CREATE DATABASE " . $quotedLiveMigrationDatabase . " CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
 
 $db = new PDO(
 	"mysql:host=" . DB_HOST . ";dbname=" . $migrationDatabase . ";charset=utf8mb4",
+	DB_USER,
+	DB_PASSWORD,
+	$options
+);
+$liveDb = new PDO(
+	"mysql:host=" . DB_HOST . ";dbname=" . $liveMigrationDatabase . ";charset=utf8mb4",
 	DB_USER,
 	DB_PASSWORD,
 	$options
@@ -76,7 +110,37 @@ try {
 
 	migrationTestSql($db, __DIR__ . "/../../database/migrations/20260724_001_add_monthly_interest_postings.sql");
 
+	migrationTestSql($liveDb, __DIR__ . "/../../database/e93ud_bank.sql");
+	$liveBefore = array(
+		"customers" => (int) migrationTestFetchOne($liveDb, "SELECT COUNT(*) AS total FROM customers")["total"],
+		"transactions" => (int) migrationTestFetchOne($liveDb, "SELECT COUNT(*) AS total FROM transactions")["total"],
+		"reward_events" => (int) migrationTestFetchOne($liveDb, "SELECT COUNT(*) AS total FROM reward_events")["total"],
+		"eligible" => (int) migrationTestFetchOne(
+			$liveDb,
+			"SELECT COUNT(*) AS total FROM customers WHERE boss = 0 AND deleted_at IS NULL"
+		)["total"],
+		"legacy_state" => (int) migrationTestFetchOne(
+			$liveDb,
+			"SELECT COUNT(*) AS total
+			FROM customer_reward_state
+			WHERE state_key = 'monthly_interest_period'"
+		)["total"],
+		"rate" => migrationTestFetchOne(
+			$liveDb,
+			"SELECT config_value FROM reward_config WHERE config_key = 'monthly_interest_rate'"
+		)["config_value"],
+		"money" => migrationTestMoneySnapshot($liveDb),
+	);
+	migrationTestSql($liveDb, __DIR__ . "/../../database/migrations/20260724_001_add_monthly_interest_postings.sql");
+
 	$runner = new TestRunner();
+
+	$runner->test("monthly-interest rollout contains one production migration", function(TestRunner $test) {
+		$paths = glob(__DIR__ . "/../../database/migrations/20260724_*monthly_interest*.sql");
+		$names = array_map("basename", $paths);
+		sort($names);
+		$test->assertSame(array("20260724_001_add_monthly_interest_postings.sql"), $names);
+	});
 
 	$runner->test("migration preserves approved balance to the cent", function(TestRunner $test) use ($db, $balanceBefore) {
 		$balanceAfter = migrationTestFetchOne(
@@ -141,21 +205,7 @@ try {
 		$test->assertTrue(strpos($description, "Monatsende") !== false);
 	});
 
-	$runner->test("migration retains legacy state during the staged rollout", function(TestRunner $test) use ($db) {
-		$count = (int) migrationTestFetchOne(
-			$db,
-			"SELECT COUNT(*) AS total
-			FROM customer_reward_state
-			WHERE state_key = 'monthly_interest_period'"
-		)["total"];
-		$test->assertSame(1, $count);
-	});
-
-	$runner->test("posting-engine migration removes the obsolete lazy state", function(TestRunner $test) use ($db) {
-		migrationTestSql(
-			$db,
-			__DIR__ . "/../../database/migrations/20260724_002_remove_legacy_monthly_interest_state.sql"
-		);
+	$runner->test("single migration removes obsolete lazy state", function(TestRunner $test) use ($db) {
 		$count = (int) migrationTestFetchOne(
 			$db,
 			"SELECT COUNT(*) AS total
@@ -165,10 +215,65 @@ try {
 		$test->assertSame(0, $count);
 	});
 
+	$runner->test("single migration applies safely to the current live dump", function(TestRunner $test) use ($liveDb, $liveBefore) {
+		$test->assertTrue($liveBefore["legacy_state"] > 0, "The live snapshot must exercise legacy-state cleanup.");
+		$test->assertSame(
+			$liveBefore["customers"],
+			(int) migrationTestFetchOne($liveDb, "SELECT COUNT(*) AS total FROM customers")["total"]
+		);
+		$test->assertSame(
+			$liveBefore["transactions"],
+			(int) migrationTestFetchOne($liveDb, "SELECT COUNT(*) AS total FROM transactions")["total"]
+		);
+		$test->assertSame(
+			$liveBefore["reward_events"],
+			(int) migrationTestFetchOne($liveDb, "SELECT COUNT(*) AS total FROM reward_events")["total"]
+		);
+		$test->assertSame($liveBefore["money"], migrationTestMoneySnapshot($liveDb));
+		$test->assertSame(
+			$liveBefore["eligible"],
+			(int) migrationTestFetchOne($liveDb, "SELECT COUNT(*) AS total FROM customer_interest_eligibility")["total"]
+		);
+		$invalidEligibility = (int) migrationTestFetchOne(
+			$liveDb,
+			"SELECT COUNT(*) AS total
+			FROM customer_interest_eligibility
+			WHERE start_period <> '2026-08-01' OR end_period IS NOT NULL"
+		)["total"];
+		$test->assertSame(0, $invalidEligibility);
+		$rate = migrationTestFetchOne(
+			$liveDb,
+			"SELECT effective_period, rate FROM monthly_interest_rates"
+		);
+		$test->assertSame("2026-08-01", $rate["effective_period"]);
+		$test->assertSame(number_format((float) $liveBefore["rate"], 8, ".", ""), $rate["rate"]);
+		$legacyCount = (int) migrationTestFetchOne(
+			$liveDb,
+			"SELECT COUNT(*) AS total
+			FROM customer_reward_state
+			WHERE state_key = 'monthly_interest_period'"
+		)["total"];
+		$test->assertSame(0, $legacyCount);
+		$newTableCount = (int) migrationTestFetchOne(
+			$liveDb,
+			"SELECT COUNT(*) AS total
+			FROM information_schema.TABLES
+			WHERE TABLE_SCHEMA = DATABASE()
+			AND TABLE_NAME IN (
+				'monthly_interest_rates',
+				'customer_interest_eligibility',
+				'monthly_interest_postings'
+			)"
+		)["total"];
+		$test->assertSame(3, $newTableCount);
+	});
+
 	$status = $runner->finish();
 } finally {
 	$db = null;
+	$liveDb = null;
 	$server->exec("DROP DATABASE IF EXISTS " . $quotedMigrationDatabase);
+	$server->exec("DROP DATABASE IF EXISTS " . $quotedLiveMigrationDatabase);
 }
 
 exit($status);

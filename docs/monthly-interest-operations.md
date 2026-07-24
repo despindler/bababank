@@ -1,5 +1,11 @@
 # Monthly Interest Operations
 
+## Production Migration
+
+Apply `database/migrations/20260724_001_add_monthly_interest_postings.sql` once before enabling the scheduler or deploying runtime code that reads the new tables. This is the complete monthly-interest database migration from the current live state represented by `database/e93ud_bank.sql`; no intermediate monthly-interest migration is required.
+
+The migration preserves every stored transaction and reward amount to the cent, creates the rate, eligibility, and posting tables, starts active non-boss customers with the August 2026 accrual period, and removes the obsolete login-triggered period markers. `npm run test:migration` restores the live dump into a disposable test database and verifies this path without changing the dump or the configured application test database.
+
 ## Scheduler Contract
 
 Run the posting command at least hourly from the deployed repository root:

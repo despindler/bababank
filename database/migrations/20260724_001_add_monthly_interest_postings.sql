@@ -73,3 +73,8 @@ AND c.deleted_at IS NULL;
 UPDATE reward_config
 SET description = 'Monatszins auf dem Kontostand am Monatsende; Gutschrift am ersten Tag des Folgemonats.'
 WHERE config_key = 'monthly_interest_rate';
+
+-- The posting ledger is now the sole record of completed interest periods.
+-- Remove the obsolete login-triggered marker in the same production migration.
+DELETE FROM customer_reward_state
+WHERE state_key = 'monthly_interest_period';

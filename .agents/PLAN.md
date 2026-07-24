@@ -38,6 +38,10 @@ Primary guidance: Read `.agents/CODEX.md` before starting or resuming work.
   - Added separate `npm run test:smoke` and `npm run test:visual` commands and deterministic screenshot comparison tolerances.
   - Corrected monthly-interest reward identification in the UI to use the processor's persisted `monthly_interest` key, preserving the explicit `Monatszins` queue label.
   - Verification: 58 functional Playwright checks passed; 8 visual comparisons passed twice consecutively; all temporary MySQL rows and future rate fixtures were removed.
+- Rollout migration consolidation: Completed on 2026-07-24.
+  - Consolidated all monthly-interest database changes and legacy-state cleanup into one production migration from the current live snapshot.
+  - Added a disposable restore of `database/e93ud_bank.sql` to migration verification so the exact production schema and data shape is exercised without modifying or committing the dump.
+  - Verification: PHP syntax and `git diff --check` passed; 19 unit tests, 22 real-MySQL tests, and 8 migration tests passed, including before/after comparison of every stored transaction and reward monetary value in the live snapshot.
 - Implementation complete. Production migration and scheduler activation remain rollout operations and were not performed by this repository work.
 
 ## 1. Objective
@@ -261,7 +265,7 @@ Create an auditable persistence model with database-enforced uniqueness and expl
   - resume without back-paying archived periods.
 - Preserve the current global-realm behavior.
 - Change relevant monetary columns to fixed decimal types if the pre/post balance audit proves the conversion safe.
-- Add an ordered migration.
+- Add one ordered production migration containing every database change required by this feature.
 - Update fresh schema and sanitized test seed.
 - Define the production cutover period as an explicit deployment value or migration decision, not an implicit use of the server date.
 - Initialize existing active customers so the first eligible new period is the first full month after cutover.
@@ -270,7 +274,7 @@ Create an auditable persistence model with database-enforced uniqueness and expl
 ### Database Verification
 
 - Apply fresh schema plus sanitized test seed.
-- Apply the migration to a database with the pre-change schema and representative data.
+- Apply the single migration to both a representative pre-change fixture and a disposable database restored from the current live dump.
 - Verify unique customer-period enforcement.
 - Verify foreign keys and deletion rules.
 - Compare every representative customer balance to the cent before and after any monetary type conversion.

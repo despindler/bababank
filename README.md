@@ -119,13 +119,13 @@ Current migrations:
   - adds `customers.deleted_at` for soft-deleting users
   - creates and seeds `reward_config`
 - `database/migrations/20260724_001_add_monthly_interest_postings.sql`
+  - is the single production migration for the monthly-interest update
   - changes stored money columns to fixed two-decimal values
   - creates monthly-interest rate history, customer eligibility intervals, and the posting ledger
   - explicitly sets August 2026 as the first accrual period, with the first posting due on September 1, 2026
   - initializes the August rate from the existing global reward configuration
-  - retains the legacy lazy-period state only for the staged rollout
-- `database/migrations/20260724_002_remove_legacy_monthly_interest_state.sql`
-  - removes the obsolete login-triggered monthly-interest state after the atomic processor takes over
+  - initializes all current active, non-boss customers and removes the obsolete login-triggered period state
+  - is validated by `npm run test:migration` against both a synthetic pre-change fixture and a disposable restore of the current `database/e93ud_bank.sql` live snapshot
 
 `database/seed.sql` intentionally omits all rows from `leases`; sessions are runtime state and should not be restored from the historical live dump. It preserves live customers, password hashes, transaction history, balances, `approved`, and `undone` flags.
 
@@ -368,7 +368,7 @@ Recent checks were run against `.env.test` with the PHP built-in server.
 - Password login, session cookies, customer KPI/transaction APIs, boss login, boss customer listing, and boss transaction listing were verified with temporary test users and then cleaned up.
 - `npm run test:unit` passed 19 deterministic monthly-interest domain tests.
 - `npm run test:db` passed 22 real-MySQL checks, including schema constraints, projection states, exact cutoff balance selection, three-month compounding, per-period rates and chests, zero settlements, archive gaps, rollback, concurrent processing, idempotency, dry-run, scheduler boundaries, customer failure continuation, structured CLI failures, advisory locking, and protected system transactions.
-- `npm run test:migration` passed 7 migration checks, including cent-preserving conversion, explicit August 2026 cutover, rate and eligibility initialization, staged legacy-state retention, and final legacy-state removal.
+- `npm run test:migration` passed the single monthly-interest migration against both a synthetic pre-change fixture and a disposable restore of the current live dump, including cent-preserving conversion, explicit August 2026 cutover, rate and eligibility initialization, and legacy-state removal.
 - `npm run test:smoke` passed 58 functional Playwright checks across desktop Chromium and mobile Chrome, including authenticated projections, historical-rate catch-up, disabled settlement, idempotency, three chronological chests, and refreshed balances/transactions.
 - `npm run test:visual` passed 8 committed component comparisons twice consecutively across desktop Chromium and mobile Chrome.
 - A manual Playwright visual pass verified the boss Banking, Users, and Rewards views on desktop and the Rewards view on mobile.
