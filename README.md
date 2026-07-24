@@ -49,7 +49,7 @@ Customer flow:
    - a piggy-bank count based on one pig per 100 balance units
    - number of incoming and outgoing approved transactions
    - transaction history
-   - daily reward chests for new deposits, savings milestones, input/withdrawal achievements, and monthly interest
+   - daily reward chests for new deposits, savings milestones, input/withdrawal achievements, and monthly interest; one tap builds pressure, pops the chest open, and releases gold- or crystal-colored particles
 5. The customer can open a Twint/WhatsApp payment request link.
 
 Boss/admin flow:
@@ -337,7 +337,7 @@ npm run test:smoke
 npm run test:visual
 ```
 
-The committed visual baselines cover the interest card in positive, zero, and disabled states plus an opened monthly-interest chest on desktop Chromium and mobile Chrome. Update them intentionally with `npx playwright test --grep @visual --update-snapshots` after reviewing the rendered UI.
+The committed visual baselines cover the interest card in positive, zero, and disabled states plus the enhanced opened monthly-interest chest on desktop Chromium and mobile Chrome. Update them intentionally with `npx playwright test --grep @visual --update-snapshots` after reviewing the rendered UI.
 
 The Playwright config starts the PHP built-in server through `tools/php-dev-server.js` when nothing is already listening on `http://127.0.0.1:8787/`. You can also start it manually:
 
@@ -369,7 +369,7 @@ Recent checks were run against `.env.test` with the PHP built-in server.
 - `npm run test:unit` passed 19 deterministic monthly-interest domain tests.
 - `npm run test:db` passed 22 real-MySQL checks, including schema constraints, projection states, exact cutoff balance selection, three-month compounding, per-period rates and chests, zero settlements, archive gaps, rollback, concurrent processing, idempotency, dry-run, scheduler boundaries, customer failure continuation, structured CLI failures, advisory locking, and protected system transactions.
 - `npm run test:migration` passed the single monthly-interest migration against both a synthetic pre-change fixture and a disposable restore of the current live dump, including cent-preserving conversion, explicit August 2026 cutover, rate and eligibility initialization, and legacy-state removal.
-- `npm run test:smoke` passed 58 functional Playwright checks across desktop Chromium and mobile Chrome, including authenticated projections, historical-rate catch-up, disabled settlement, idempotency, three chronological chests, and refreshed balances/transactions.
+- `npm run test:smoke` passed 62 functional Playwright checks across desktop Chromium and mobile Chrome, including authenticated projections, historical-rate catch-up, disabled settlement, idempotency, three chronological chests, the pressure/burst opening sequence, duplicate-click suppression, reduced motion, and refreshed balances/transactions.
 - `npm run test:visual` passed 8 committed component comparisons twice consecutively across desktop Chromium and mobile Chrome.
 - A manual Playwright visual pass verified the boss Banking, Users, and Rewards views on desktop and the Rewards view on mobile.
 - Google token verification still requires a real Google ID token and PHP OpenSSL. The server-side Google auth path is present, but end-to-end Google sign-in should be rechecked in a browser after configuring a valid Google client.

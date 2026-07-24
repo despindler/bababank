@@ -281,6 +281,75 @@ test("disabled monthly-interest projection visual @visual", async ({ page }) => 
 	await expect(card).toHaveScreenshot("disabled-interest-card.png");
 });
 
+test("one tap builds pressure and opens one chest exactly once @smoke", async ({ page }) => {
+	let openCalls = 0;
+	await page.route("**/backend/customers/me/rewards/*/open", async (route) => {
+		openCalls += 1;
+		await route.fulfill({ json: { success: true, result: true } });
+	});
+	await loginCustomer(page, fixture.catchupUsername);
+
+	const stage = page.locator(".reward-stage");
+	const button = page.locator("#reward-chest-button");
+	const image = page.locator("#reward-chest-image");
+	await button.click();
+
+	await expect(stage).toHaveClass(/is-charging/);
+	await expect(stage).toHaveAttribute("aria-busy", "true");
+	await expect(image).toHaveAttribute("src", "../assets/rewards/chest-closed.png");
+	await expect(page.locator("#reward-description")).toHaveText("Gleich platzt die Kiste auf ...");
+	await expect(button).toHaveCSS("animation-name", "chestPressure");
+	await page.evaluate(() => document.querySelector("#reward-chest-button").click());
+
+	await expect(stage).toHaveClass(/is-bursting/);
+	await expect(button).toHaveCSS("animation-name", "chestBurst");
+	await expect(page.locator(".reward-sparkles span").first()).toHaveCSS("animation-name", "sparkleBurst");
+	await expect(image).toHaveAttribute("src", "../assets/rewards/chest-open-gold.png");
+	await expect(page.locator("#reward-amount")).toHaveClass(/is-revealed/);
+	await expect(stage).toHaveClass(/is-open/);
+	await expect(stage).not.toHaveAttribute("aria-busy");
+	await expect(page.locator("#reward-next-button")).toBeVisible();
+	await expect.poll(() => openCalls).toBe(1);
+});
+
+test("reduced motion opens immediately without pressure or particles @smoke", async ({ page }) => {
+	await page.emulateMedia({ reducedMotion: "reduce" });
+	let openCalls = 0;
+	await page.route("**/backend/customers/me/rewards/daily", async (route) => {
+		await route.fulfill({
+			json: {
+				success: true,
+				result: [{
+					id: 999001,
+					reward_key: "savings_milestone",
+					chest_variant: "crystals",
+					title: "Kristall-Belohnung",
+					description: "Kristalle erhalten.",
+					amount: "2.00",
+					balance_before: "100.00",
+					balance_after: "102.00",
+				}],
+			},
+		});
+	});
+	await page.route("**/backend/customers/me/rewards/*/open", async (route) => {
+		openCalls += 1;
+		await route.fulfill({ json: { success: true, result: true } });
+	});
+	await loginCustomer(page, fixture.catchupUsername);
+
+	const stage = page.locator(".reward-stage");
+	await page.locator("#reward-chest-button").click();
+
+	await expect(page.locator("#reward-chest-image")).toHaveAttribute("src", "../assets/rewards/chest-open-crystals.png");
+	await expect(stage).toHaveAttribute("data-variant", "crystals");
+	await expect(stage).toHaveClass(/is-open/);
+	await expect(stage).not.toHaveClass(/is-charging|is-bursting/);
+	await expect(page.locator(".reward-sparkles")).toHaveCSS("display", "none");
+	await expect(page.locator("#reward-next-button")).toBeVisible();
+	await expect.poll(() => openCalls).toBe(1);
+});
+
 test("monthly catch-up chest visual @visual", async ({ page }) => {
 	await page.route("**/backend/customers/me/rewards/*/open", async (route) => {
 		await route.fulfill({ json: { success: true, result: true } });
@@ -291,6 +360,8 @@ test("monthly catch-up chest visual @visual", async ({ page }) => {
 	await page.locator("#reward-chest-button").click();
 	await expect(page.locator("#reward-chest-image")).toHaveAttribute("src", "../assets/rewards/chest-open-gold.png");
 	await expect(page.locator("#reward-chest-image")).toHaveJSProperty("complete", true);
+	await expect(page.locator(".reward-stage")).toHaveClass(/is-open/);
+	await expect(page.locator(".reward-stage")).not.toHaveClass(/is-bursting/);
 	await settleVisuals(page);
 
 	await expect(page.locator("#reward-modal .modal-content")).toHaveScreenshot("monthly-interest-chest.png");

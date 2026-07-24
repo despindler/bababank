@@ -8,6 +8,13 @@ const Bank = (() => {
 	let rewardQueue = [];
 	let rewardIndex = 0;
 	let rewardOpened = false;
+	let rewardBurstTimer = null;
+	const rewardTiming = {
+		charge: 700,
+		reveal: 120,
+		settle: 360,
+		burstTail: 430,
+	};
 	const transactionSort = {
 		customer: { key: "datetime", direction: "desc" },
 		boss: { key: "datetime", direction: "desc" },
@@ -96,6 +103,24 @@ const Bank = (() => {
 			return "../assets/rewards/chest-closed.png";
 		}
 		return variant === "crystals" ? "../assets/rewards/chest-open-crystals.png" : "../assets/rewards/chest-open-gold.png";
+	}
+
+	function prefersReducedMotion() {
+		return typeof window.matchMedia === "function"
+			&& window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+	}
+
+	function rewardDelay(milliseconds, reduceMotion) {
+		return reduceMotion
+			? Promise.resolve()
+			: new Promise((resolve) => window.setTimeout(resolve, milliseconds));
+	}
+
+	function clearRewardBurstTimer() {
+		if (rewardBurstTimer !== null) {
+			window.clearTimeout(rewardBurstTimer);
+			rewardBurstTimer = null;
+		}
 	}
 
 	function germanDate(date) {
@@ -471,13 +496,20 @@ const Bank = (() => {
 		setText("#reward-amount", "");
 		const image = qs("#reward-chest-image");
 		const button = qs("#reward-chest-button");
-		qs(".reward-stage")?.classList.remove("is-open");
+		const stage = qs(".reward-stage");
+		const amount = qs("#reward-amount");
+		clearRewardBurstTimer();
+		stage?.classList.remove("is-charging", "is-bursting", "is-open");
+		stage?.setAttribute("data-variant", reward.chest_variant === "crystals" ? "crystals" : "gold");
+		stage?.removeAttribute("aria-busy");
+		amount?.classList.remove("is-revealed");
 		if (image) {
 			image.src = rewardImage(reward.chest_variant, false);
 		}
 		if (button) {
 			button.disabled = false;
-			button.classList.remove("is-open");
+			button.classList.remove("is-charging", "is-bursting", "is-open");
+			button.setAttribute("aria-label", "Belohnung oeffnen");
 		}
 		hide("#reward-next-button");
 	}
@@ -490,25 +522,58 @@ const Bank = (() => {
 		rewardOpened = true;
 		const button = qs("#reward-chest-button");
 		const image = qs("#reward-chest-image");
+		const stage = qs(".reward-stage");
+		const amount = qs("#reward-amount");
+		const reduceMotion = prefersReducedMotion();
 		if (button) {
 			button.disabled = true;
-			button.classList.add("is-open");
+			button.setAttribute("aria-label", "Belohnung wird geoeffnet");
 		}
-		qs(".reward-stage")?.classList.add("is-open");
+		stage?.setAttribute("aria-busy", "true");
+
+		if (!reduceMotion) {
+			button?.classList.add("is-charging");
+			stage?.classList.add("is-charging");
+			setText("#reward-description", "Gleich platzt die Kiste auf ...");
+			await rewardDelay(rewardTiming.charge, false);
+			button?.classList.remove("is-charging");
+			stage?.classList.remove("is-charging");
+			button?.classList.add("is-bursting");
+			stage?.classList.add("is-bursting");
+		}
+
 		if (image) {
 			image.src = rewardImage(reward.chest_variant, true);
 		}
 
+		const openRequest = api(`/customers/me/rewards/${reward.id}/open`, { method: "POST" })
+			.catch((error) => error);
+		await rewardDelay(rewardTiming.reveal, reduceMotion);
 		setText("#reward-description", reward.description || "Belohnung erhalten.");
 		setText("#reward-amount", `+ ${money(reward.amount)}`);
+		amount?.classList.add("is-revealed");
 		animateBalance(Number(reward.balance_before), Number(reward.balance_after));
 
-		try {
-			await api(`/customers/me/rewards/${reward.id}/open`, { method: "POST" });
-		} catch (error) {
-			toast(error.message, "danger");
+		const [openResult] = await Promise.all([
+			openRequest,
+			rewardDelay(rewardTiming.settle, reduceMotion),
+		]);
+		if (openResult instanceof Error) {
+			toast(openResult.message, "danger");
 		}
+		button?.classList.remove("is-bursting");
+		button?.classList.add("is-open");
+		button?.setAttribute("aria-label", "Belohnung geoeffnet");
+		stage?.classList.add("is-open");
+		stage?.removeAttribute("aria-busy");
 		show("#reward-next-button");
+
+		if (!reduceMotion && stage) {
+			rewardBurstTimer = window.setTimeout(() => {
+				stage.classList.remove("is-bursting");
+				rewardBurstTimer = null;
+			}, rewardTiming.burstTail);
+		}
 	}
 
 	async function nextReward() {

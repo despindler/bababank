@@ -618,11 +618,22 @@ body {
 }
 
 .reward-stage {
+	--reward-primary: #ffe46b;
+	--reward-secondary: #b8e445;
+	--reward-glow: rgba(255, 228, 107, 0.52);
+	--particle-glow: rgba(255, 228, 107, 0.88);
 	position: relative;
 	min-height: 18rem;
 	display: grid;
 	place-items: center;
 	isolation: isolate;
+}
+
+.reward-stage[data-variant="crystals"] {
+	--reward-primary: #8ee7ff;
+	--reward-secondary: #b89cff;
+	--reward-glow: rgba(142, 231, 255, 0.5);
+	--particle-glow: rgba(142, 231, 255, 0.88);
 }
 
 .reward-stage::before {
@@ -631,10 +642,34 @@ body {
 	width: 17rem;
 	height: 17rem;
 	border-radius: 50%;
-	background: radial-gradient(circle, rgba(255, 241, 118, 0.42), rgba(102, 199, 244, 0.14) 42%, transparent 70%);
+	background: radial-gradient(circle, var(--reward-glow), rgba(102, 199, 244, 0.14) 42%, transparent 70%);
 	filter: blur(2px);
 	animation: rewardPulse 1500ms ease-in-out infinite alternate;
 	z-index: -1;
+}
+
+.reward-stage::after {
+	content: "";
+	position: absolute;
+	width: 8rem;
+	height: 8rem;
+	border: 0.35rem solid var(--reward-primary);
+	border-radius: 50%;
+	opacity: 0;
+	pointer-events: none;
+	z-index: -1;
+}
+
+.reward-stage.is-charging::before {
+	animation: pressureBuild 700ms cubic-bezier(0.35, 0, 0.65, 1) both;
+}
+
+.reward-stage.is-bursting::after {
+	animation: rewardShockwave 600ms ease-out both;
+}
+
+.reward-stage.is-bursting {
+	animation: rewardRecoil 300ms ease-out both;
 }
 
 .reward-chest-button {
@@ -648,8 +683,8 @@ body {
 	animation: chestArrival 600ms cubic-bezier(0.2, 1.2, 0.2, 1);
 }
 
-.reward-chest-button:hover,
-.reward-chest-button:focus-visible {
+.reward-chest-button:not(:disabled):hover,
+.reward-chest-button:not(:disabled):focus-visible {
 	transform: translateY(-0.25rem) scale(1.02);
 	outline: none;
 }
@@ -662,11 +697,24 @@ body {
 	animation: chestFloat 1800ms ease-in-out 650ms infinite alternate;
 }
 
-.reward-chest-button.is-open {
-	animation: chestOpen 520ms cubic-bezier(0.22, 1, 0.36, 1);
+.reward-chest-button.is-charging {
+	animation: chestPressure 700ms linear both;
 	cursor: default;
 }
 
+.reward-chest-button.is-bursting {
+	animation: chestBurst 260ms cubic-bezier(0.18, 1.35, 0.35, 1) both;
+	cursor: default;
+}
+
+.reward-chest-button.is-open {
+	animation: none;
+	cursor: default;
+	transform: none;
+}
+
+.reward-chest-button.is-charging img,
+.reward-chest-button.is-bursting img,
 .reward-chest-button.is-open img {
 	animation: none;
 }
@@ -691,33 +739,57 @@ body {
 	text-shadow: 0 0 24px rgba(184, 228, 69, 0.34);
 }
 
+.reward-amount.is-revealed {
+	animation: rewardAmountReveal 520ms cubic-bezier(0.18, 1.35, 0.35, 1) both;
+}
+
 .reward-sparkles {
 	position: absolute;
 	inset: 0;
 	pointer-events: none;
-	opacity: 0;
-}
-
-.reward-stage.is-open .reward-sparkles {
-	opacity: 1;
+	overflow: visible;
+	z-index: 2;
 }
 
 .reward-sparkles span {
 	position: absolute;
-	width: 0.55rem;
-	height: 0.55rem;
+	left: 50%;
+	top: 49%;
+	width: var(--particle-size, 0.55rem);
+	height: var(--particle-size, 0.55rem);
 	border-radius: 50%;
-	background: var(--bank-lime);
-	box-shadow: 0 0 18px rgba(184, 228, 69, 0.9);
-	animation: sparklePop 850ms ease-out both;
+	background: var(--particle-color, var(--reward-primary));
+	box-shadow: 0 0 18px var(--particle-glow);
+	opacity: 0;
 }
 
-.reward-sparkles span:nth-child(1) { left: 18%; top: 34%; animation-delay: 40ms; }
-.reward-sparkles span:nth-child(2) { left: 31%; top: 19%; animation-delay: 120ms; }
-.reward-sparkles span:nth-child(3) { right: 25%; top: 22%; animation-delay: 80ms; }
-.reward-sparkles span:nth-child(4) { right: 16%; top: 42%; animation-delay: 160ms; }
-.reward-sparkles span:nth-child(5) { left: 28%; bottom: 22%; animation-delay: 210ms; }
-.reward-sparkles span:nth-child(6) { right: 32%; bottom: 18%; animation-delay: 260ms; }
+.reward-stage.is-bursting .reward-sparkles span {
+	animation: sparkleBurst 900ms cubic-bezier(0.12, 0.72, 0.2, 1) var(--particle-delay, 0ms) both;
+}
+
+.reward-sparkles .reward-star {
+	border-radius: 0;
+	clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 94%, 50% 72%, 21% 94%, 32% 57%, 2% 35%, 39% 35%);
+}
+
+.reward-sparkles span:nth-child(even) {
+	--particle-color: var(--reward-secondary);
+}
+
+.reward-sparkles span:nth-child(1) { --particle-x: -8.8rem; --particle-y: -4.8rem; --particle-rotation: -130deg; --particle-delay: 0ms; }
+.reward-sparkles span:nth-child(2) { --particle-x: -5.5rem; --particle-y: -7.8rem; --particle-rotation: 95deg; --particle-delay: 45ms; --particle-size: 0.85rem; }
+.reward-sparkles span:nth-child(3) { --particle-x: -1.9rem; --particle-y: -9rem; --particle-rotation: -70deg; --particle-delay: 90ms; }
+.reward-sparkles span:nth-child(4) { --particle-x: 3.2rem; --particle-y: -8.5rem; --particle-rotation: 140deg; --particle-delay: 20ms; --particle-size: 0.75rem; }
+.reward-sparkles span:nth-child(5) { --particle-x: 7.4rem; --particle-y: -6.1rem; --particle-rotation: 210deg; --particle-delay: 75ms; }
+.reward-sparkles span:nth-child(6) { --particle-x: 9.3rem; --particle-y: -2.1rem; --particle-rotation: -115deg; --particle-delay: 120ms; --particle-size: 0.9rem; }
+.reward-sparkles span:nth-child(7) { --particle-x: 8.5rem; --particle-y: 3.3rem; --particle-rotation: 165deg; --particle-delay: 35ms; }
+.reward-sparkles span:nth-child(8) { --particle-x: 5.1rem; --particle-y: 6.4rem; --particle-rotation: -190deg; --particle-delay: 145ms; --particle-size: 0.8rem; }
+.reward-sparkles span:nth-child(9) { --particle-x: 1.6rem; --particle-y: 7.2rem; --particle-rotation: 105deg; --particle-delay: 80ms; }
+.reward-sparkles span:nth-child(10) { --particle-x: -3.6rem; --particle-y: 6.8rem; --particle-rotation: -155deg; --particle-delay: 125ms; --particle-size: 0.85rem; }
+.reward-sparkles span:nth-child(11) { --particle-x: -7.5rem; --particle-y: 4.6rem; --particle-rotation: 175deg; --particle-delay: 55ms; }
+.reward-sparkles span:nth-child(12) { --particle-x: -9.4rem; --particle-y: 0.2rem; --particle-rotation: -95deg; --particle-delay: 165ms; --particle-size: 0.75rem; }
+.reward-sparkles span:nth-child(13) { --particle-x: -5.9rem; --particle-y: -2.5rem; --particle-rotation: 135deg; --particle-delay: 180ms; }
+.reward-sparkles span:nth-child(14) { --particle-x: 6.1rem; --particle-y: 0.6rem; --particle-rotation: -145deg; --particle-delay: 195ms; --particle-size: 0.7rem; }
 
 .is-hidden {
 	display: none !important;
@@ -743,18 +815,51 @@ body {
 	}
 }
 
-@keyframes chestOpen {
+@keyframes chestPressure {
 	0% {
-		transform: scale(1) rotate(0);
+		transform: translate(0, 0) scale(1);
 	}
-	35% {
-		transform: scale(0.92) rotate(-2deg);
+	14% {
+		transform: translate(-0.08rem, 0) rotate(-0.5deg) scale(1.002);
 	}
-	70% {
-		transform: scale(1.08) rotate(2deg);
+	28% {
+		transform: translate(0.1rem, -0.02rem) rotate(0.7deg) scale(1.008);
+	}
+	42% {
+		transform: translate(-0.16rem, 0.03rem) rotate(-1deg) scale(1.015);
+	}
+	54% {
+		transform: translate(0.2rem, -0.04rem) rotate(1.4deg) scale(1.025);
+	}
+	65% {
+		transform: translate(-0.28rem, 0.03rem) rotate(-1.8deg) scale(1.035);
+	}
+	75% {
+		transform: translate(0.34rem, -0.06rem) rotate(2.3deg) scale(1.045);
+	}
+	84% {
+		transform: translate(-0.4rem, 0.05rem) rotate(-2.8deg) scale(1.055);
+	}
+	92% {
+		transform: translate(0.35rem, 0.08rem) rotate(2.2deg) scale(1.02, 1.08);
 	}
 	100% {
-		transform: scale(1) rotate(0);
+		transform: translateY(0.18rem) rotate(0) scale(1.08, 0.9);
+	}
+}
+
+@keyframes chestBurst {
+	0% {
+		transform: translateY(0.18rem) scale(1.08, 0.9);
+	}
+	52% {
+		transform: translateY(-0.7rem) scale(1.15, 1.12) rotate(-1.5deg);
+	}
+	78% {
+		transform: translateY(0.08rem) scale(0.97, 1.03) rotate(0.7deg);
+	}
+	100% {
+		transform: translateY(0) scale(1) rotate(0);
 	}
 }
 
@@ -769,17 +874,79 @@ body {
 	}
 }
 
-@keyframes sparklePop {
+@keyframes pressureBuild {
 	0% {
+		transform: scale(0.92);
+		opacity: 0.72;
+		filter: blur(3px);
+	}
+	70% {
+		transform: scale(1.12);
+		opacity: 1;
+		filter: blur(1px);
+	}
+	100% {
+		transform: scale(0.82);
+		opacity: 1;
+		filter: blur(0);
+	}
+}
+
+@keyframes rewardShockwave {
+	0% {
+		opacity: 0.9;
+		transform: scale(0.45);
+	}
+	100% {
 		opacity: 0;
-		transform: translateY(1rem) scale(0.4);
+		transform: scale(2.25);
+	}
+}
+
+@keyframes rewardRecoil {
+	0% {
+		transform: translateY(0);
 	}
 	35% {
+		transform: translateY(0.35rem);
+	}
+	70% {
+		transform: translateY(-0.18rem);
+	}
+	100% {
+		transform: translateY(0);
+	}
+}
+
+@keyframes sparkleBurst {
+	0% {
+		opacity: 0;
+		transform: translate(-50%, -50%) scale(0.2) rotate(0);
+	}
+	18% {
+		opacity: 1;
+	}
+	72% {
 		opacity: 1;
 	}
 	100% {
 		opacity: 0;
-		transform: translateY(-4rem) scale(1.4);
+		transform: translate(calc(-50% + var(--particle-x)), calc(-50% + var(--particle-y))) scale(1.3) rotate(var(--particle-rotation));
+	}
+}
+
+@keyframes rewardAmountReveal {
+	0% {
+		opacity: 0;
+		transform: translateY(1rem) scale(0.72);
+	}
+	65% {
+		opacity: 1;
+		transform: translateY(-0.12rem) scale(1.08);
+	}
+	100% {
+		opacity: 1;
+		transform: translateY(0) scale(1);
 	}
 }
 
@@ -822,5 +989,20 @@ body {
 
 	.user-management-grid {
 		grid-template-columns: 1fr;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.reward-stage::before,
+	.reward-chest-button,
+	.reward-chest-button img,
+	.reward-amount.is-revealed {
+		animation-duration: 1ms !important;
+		animation-iteration-count: 1 !important;
+	}
+
+	.reward-stage::after,
+	.reward-sparkles {
+		display: none;
 	}
 }

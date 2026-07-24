@@ -42,6 +42,11 @@ Primary guidance: Read `.agents/CODEX.md` before starting or resuming work.
   - Consolidated all monthly-interest database changes and legacy-state cleanup into one production migration from the current live snapshot.
   - Added a disposable restore of `database/e93ud_bank.sql` to migration verification so the exact production schema and data shape is exercised without modifying or committing the dump.
   - Verification: PHP syntax and `git diff --check` passed; 19 unit tests, 22 real-MySQL tests, and 8 migration tests passed, including before/after comparison of every stored transaction and reward monetary value in the live snapshot.
+- Reward chest opening experience: Completed on 2026-07-24.
+  - Replaced the immediate image swap with a one-tap pressure, compression, burst, and stable-open sequence lasting about 1.2 seconds.
+  - Added an expanding shockwave, stage recoil, spring amount reveal, and deterministic gold/crystal particle palettes with mixed spark and star shapes.
+  - Kept the server open request single-shot, blocked duplicate activation, preserved independent queued chests, and added an immediate particle-free path for reduced motion.
+  - Verification: JavaScript syntax and focused desktop/mobile interaction tests passed; 62 functional Playwright checks passed; 8 reviewed visual comparisons passed twice consecutively.
 - Implementation complete. Production migration and scheduler activation remain rollout operations and were not performed by this repository work.
 
 ## 1. Objective
