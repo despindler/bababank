@@ -10,6 +10,8 @@
     "test:migration": "php tests/php/run-migration.php",
     "test:unit": "php tests/php/run-unit.php",
     "test": "playwright test",
+    "test:smoke": "playwright test --grep-invert @visual",
+    "test:visual": "playwright test --grep @visual",
     "test:headed": "playwright test --headed"
   },
   "repository": {

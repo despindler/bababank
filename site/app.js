@@ -138,7 +138,7 @@ const Bank = (() => {
 			setText("#monthly-interest-amount", "–");
 			setText("#monthly-interest-rate", "Monatszins deaktiviert");
 			setText("#monthly-interest-posting", "Für diesen Zeitraum ist keine Zinsgutschrift vorgesehen.");
-			setText("#monthly-interest-explanation", postingDate ? `Nächster möglicher Buchungstermin: ${postingDate}.` : "");
+			setText("#monthly-interest-explanation", postingDate ? `Der Zeitraum wird am ${postingDate} ohne Zinsgutschrift abgeschlossen.` : "");
 			return;
 		}
 
@@ -464,7 +464,7 @@ const Bank = (() => {
 			return;
 		}
 		rewardOpened = false;
-		const monthlyInterest = typeof reward.reward_key === "string" && reward.reward_key.startsWith("monthly_interest:");
+		const monthlyInterest = reward.reward_key === "monthly_interest";
 		setText("#reward-step", `${monthlyInterest ? "Monatszins" : "Belohnung"} · ${rewardIndex + 1} / ${rewardQueue.length}`);
 		setText("#reward-title", reward.title || "Pocket Bonus");
 		setText("#reward-description", "Tippe auf die Kiste.");

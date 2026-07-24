@@ -1,6 +1,6 @@
 # Monthly Interest Posting and Customer Projection Plan
 
-Status: In implementation
+Status: Completed
 Last updated: 2026-07-24
 Primary guidance: Read `.agents/CODEX.md` before starting or resuming work.
 
@@ -32,7 +32,13 @@ Primary guidance: Read `.agents/CODEX.md` before starting or resuming work.
   - Added a test-only August 2026 HTTP clock, customer-isolation coverage, projection-state database tests, and desktop/mobile UI assertions without duplicating financial rules in JavaScript.
   - Monthly-interest reward queues now carry an explicit `Monatszins` step label while retaining their period-specific titles and gold chest treatment, distinct from crystal achievement rewards.
   - Verification: 19 unit tests, 22 real-MySQL tests, and 24 focused desktop/mobile Playwright tests passed.
-- Next milestone: Milestone 6 — Playwright Smoke and Visual Coverage.
+- Milestone 6: Completed on 2026-07-24.
+  - Added real PHP/MySQL Playwright coverage for three-period automatic catch-up, period-specific historical rates, Zurich effective timestamps, fixed-cent running balances, disabled zero settlement, idempotent retry, authenticated reward order, and independent chest opening.
+  - Added reviewed component baselines for positive, zero, and disabled projection states plus the opened gold monthly-interest chest on desktop Chromium and mobile Chrome.
+  - Added separate `npm run test:smoke` and `npm run test:visual` commands and deterministic screenshot comparison tolerances.
+  - Corrected monthly-interest reward identification in the UI to use the processor's persisted `monthly_interest` key, preserving the explicit `Monatszins` queue label.
+  - Verification: 58 functional Playwright checks passed; 8 visual comparisons passed twice consecutively; all temporary MySQL rows and future rate fixtures were removed.
+- Implementation complete. Production migration and scheduler activation remain rollout operations and were not performed by this repository work.
 
 ## 1. Objective
 

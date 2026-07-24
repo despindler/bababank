@@ -45,6 +45,7 @@ Customer flow:
 3. A server-side PHP session is created and tracked with an HttpOnly cookie.
 4. The customer dashboard shows:
    - current balance
+   - `Voraussichtlicher Monatszins`, calculated by the server from the current balance with the next first-of-month posting date
    - a piggy-bank count based on one pig per 100 balance units
    - number of incoming and outgoing approved transactions
    - transaction history
@@ -143,9 +144,9 @@ Read routes:
 - `GET /backend/customers/{id}/transactions`
   - returns non-undone transactions for one customer; non-boss users may only request their own ID
 - `GET /backend/customers/me/kpis`
-  - returns balance, pig count, incoming count, and outgoing count for the logged-in customer
+  - returns balance, pig count, incoming count, outgoing count, and the server-calculated monthly-interest projection for the logged-in customer
 - `GET /backend/customers/{id}/kpis`
-  - returns balance, pig count, incoming count, and outgoing count; non-boss users may only request their own ID
+  - returns balance, pig count, incoming count, outgoing count, and monthly-interest projection; non-boss users may only request their own ID
 - `GET /backend/customers`
   - boss-only; returns non-boss customers in the boss user's realm
 - `GET /backend/boss/overview`
@@ -329,6 +330,15 @@ Run the tests:
 npm test
 ```
 
+Run functional smoke tests or visual comparisons separately:
+
+```powershell
+npm run test:smoke
+npm run test:visual
+```
+
+The committed visual baselines cover the interest card in positive, zero, and disabled states plus an opened monthly-interest chest on desktop Chromium and mobile Chrome. Update them intentionally with `npx playwright test --grep @visual --update-snapshots` after reviewing the rendered UI.
+
 The Playwright config starts the PHP built-in server through `tools/php-dev-server.js` when nothing is already listening on `http://127.0.0.1:8787/`. You can also start it manually:
 
 ```powershell
@@ -357,8 +367,9 @@ Recent checks were run against `.env.test` with the PHP built-in server.
 - HTTP smoke checks returned 200 for `/`, `/customer/`, `/boss/`, `/styles.css`, and `/app.js`.
 - Password login, session cookies, customer KPI/transaction APIs, boss login, boss customer listing, and boss transaction listing were verified with temporary test users and then cleaned up.
 - `npm run test:unit` passed 19 deterministic monthly-interest domain tests.
-- `npm run test:db` passed 21 real-MySQL checks, including schema constraints, exact cutoff balance selection, three-month compounding, per-period rates and chests, zero settlements, archive gaps, rollback, concurrent processing, idempotency, dry-run, scheduler boundaries, customer failure continuation, structured CLI failures, advisory locking, and protected system transactions.
+- `npm run test:db` passed 22 real-MySQL checks, including schema constraints, projection states, exact cutoff balance selection, three-month compounding, per-period rates and chests, zero settlements, archive gaps, rollback, concurrent processing, idempotency, dry-run, scheduler boundaries, customer failure continuation, structured CLI failures, advisory locking, and protected system transactions.
 - `npm run test:migration` passed 7 migration checks, including cent-preserving conversion, explicit August 2026 cutover, rate and eligibility initialization, staged legacy-state retention, and final legacy-state removal.
-- `npm test` passed 40 Playwright checks across desktop Chromium and mobile Chrome, including confirmation that customer reads no longer trigger interest posting.
+- `npm run test:smoke` passed 58 functional Playwright checks across desktop Chromium and mobile Chrome, including authenticated projections, historical-rate catch-up, disabled settlement, idempotency, three chronological chests, and refreshed balances/transactions.
+- `npm run test:visual` passed 8 committed component comparisons twice consecutively across desktop Chromium and mobile Chrome.
 - A manual Playwright visual pass verified the boss Banking, Users, and Rewards views on desktop and the Rewards view on mobile.
 - Google token verification still requires a real Google ID token and PHP OpenSSL. The server-side Google auth path is present, but end-to-end Google sign-in should be rechecked in a browser after configuring a valid Google client.

@@ -7,6 +7,11 @@ module.exports = defineConfig({
 	timeout: 30000,
 	expect: {
 		timeout: 5000,
+		toHaveScreenshot: {
+			animations: "disabled",
+			caret: "hide",
+			maxDiffPixelRatio: 0.005,
+		},
 	},
 	use: {
 		baseURL,
