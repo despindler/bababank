@@ -45,7 +45,7 @@ Customer flow:
 3. A server-side PHP session is created and tracked with an HttpOnly cookie.
 4. The customer dashboard shows:
    - current balance
-   - `Voraussichtlicher Monatszins`, calculated by the server from the current balance with the next first-of-month posting date
+   - `Voraussichtlicher Monatszins`, calculated by the server from the current balance for the earliest current or future eligible month, with its first-of-next-month posting date
    - a piggy-bank count based on one pig per 100 balance units
    - number of incoming and outgoing approved transactions
    - transaction history
@@ -145,6 +145,7 @@ Read routes:
   - returns non-undone transactions for one customer; non-boss users may only request their own ID
 - `GET /backend/customers/me/kpis`
   - returns balance, pig count, incoming count, outgoing count, and the server-calculated monthly-interest projection for the logged-in customer
+  - if the current month precedes the customer's first eligible month, the projection targets the earliest future month covered by both eligibility and the global rate schedule
 - `GET /backend/customers/{id}/kpis`
   - returns balance, pig count, incoming count, outgoing count, and monthly-interest projection; non-boss users may only request their own ID
 - `GET /backend/customers`
@@ -366,10 +367,10 @@ Recent checks were run against `.env.test` with the PHP built-in server.
 - `node --check site/app.js` passed.
 - HTTP smoke checks returned 200 for `/`, `/customer/`, `/boss/`, `/styles.css`, and `/app.js`.
 - Password login, session cookies, customer KPI/transaction APIs, boss login, boss customer listing, and boss transaction listing were verified with temporary test users and then cleaned up.
-- `npm run test:unit` passed 19 deterministic monthly-interest domain tests.
+- `npm run test:unit` passed 20 deterministic monthly-interest domain tests.
 - `npm run test:db` passed 22 real-MySQL checks, including schema constraints, projection states, exact cutoff balance selection, three-month compounding, per-period rates and chests, zero settlements, archive gaps, rollback, concurrent processing, idempotency, dry-run, scheduler boundaries, customer failure continuation, structured CLI failures, advisory locking, and protected system transactions.
 - `npm run test:migration` passed the single monthly-interest migration against both a synthetic pre-change fixture and a disposable restore of the current live dump, including cent-preserving conversion, explicit August 2026 cutover, rate and eligibility initialization, and legacy-state removal.
-- `npm run test:smoke` passed 62 functional Playwright checks across desktop Chromium and mobile Chrome, including authenticated projections, historical-rate catch-up, disabled settlement, idempotency, three chronological chests, the pressure/burst opening sequence, duplicate-click suppression, reduced motion, and refreshed balances/transactions.
+- `npm run test:smoke` passed 62 functional Playwright checks across desktop Chromium and mobile Chrome, including the July-to-August cutover forecast, authenticated projections, historical-rate catch-up, disabled settlement, idempotency, three chronological chests, the pressure/burst opening sequence, duplicate-click suppression, reduced motion, and refreshed balances/transactions.
 - `npm run test:visual` passed 8 committed component comparisons twice consecutively across desktop Chromium and mobile Chrome.
 - A manual Playwright visual pass verified the boss Banking, Users, and Rewards views on desktop and the Rewards view on mobile.
 - Google token verification still requires a real Google ID token and PHP OpenSSL. The server-side Google auth path is present, but end-to-end Google sign-in should be rechecked in a browser after configuring a valid Google client.

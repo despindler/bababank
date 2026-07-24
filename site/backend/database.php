@@ -874,24 +874,40 @@ function dbMonthlyInterestRateForPeriod($period)
 	);
 }
 
-function dbCustomerEligibleForMonthlyInterestPeriod($customer, $period)
+function dbMonthlyInterestProjectionPeriodForCustomer($customer, MonthlyInterestPeriod $currentPeriod)
 {
-	$period = MonthlyInterestPeriod::fromKey(substr((string) $period, 0, 7))->key() . "-01";
-	$row = dbFetchOne(
-		"SELECT id
+	$firstConfigured = dbFirstConfiguredInterestPeriod();
+	if ($firstConfigured === null) {
+		return null;
+	}
+
+	$currentStart = $currentPeriod->key() . "-01";
+	$intervals = dbFetchAll(
+		"SELECT start_period, end_period
 		FROM customer_interest_eligibility
 		WHERE customer = :customer
-		AND start_period <= :start_period
-		AND (end_period IS NULL OR end_period > :end_period)
-		ORDER BY start_period DESC
-		LIMIT 1",
+		AND (end_period IS NULL OR end_period > :current_period)
+		ORDER BY start_period",
 		array(
 			"customer" => (int) $customer,
-			"start_period" => $period,
-			"end_period" => $period,
+			"current_period" => $currentStart,
 		)
 	);
-	return $row !== null;
+
+	foreach ($intervals as $interval) {
+		$candidate = $currentStart;
+		if (strcmp($interval["start_period"], $candidate) > 0) {
+			$candidate = $interval["start_period"];
+		}
+		if (strcmp($firstConfigured, $candidate) > 0) {
+			$candidate = $firstConfigured;
+		}
+		if ($interval["end_period"] === null || strcmp($candidate, $interval["end_period"]) < 0) {
+			return MonthlyInterestPeriod::fromKey(substr($candidate, 0, 7));
+		}
+	}
+
+	return null;
 }
 
 function dbMonthlyInterestProjectionForCustomer($customer, $balance, MonthlyInterestClock $clock)
@@ -915,18 +931,24 @@ function dbMonthlyInterestProjectionForCustomer($customer, $balance, MonthlyInte
 		"is_estimate" => true,
 	);
 
-	if (!dbCustomerEligibleForMonthlyInterestPeriod($customer, $period->key())) {
+	$projectionPeriod = dbMonthlyInterestProjectionPeriodForCustomer($customer, $period);
+	if ($projectionPeriod === null) {
 		$base["status"] = "not_eligible";
 		return $base;
 	}
 
-	$rateRow = dbMonthlyInterestRateForPeriod($period->key());
+	$rateRow = dbMonthlyInterestRateForPeriod($projectionPeriod->key());
 	if (!$rateRow) {
 		return $base;
 	}
 
 	$enabled = MonthlyInterestMoney::normalizedRate($rateRow["rate"]) !== "0";
-	$projection = MonthlyInterestProjection::build($balance, $rateRow["rate"], $clock, $enabled);
+	$projection = MonthlyInterestProjection::buildForPeriod(
+		$balance,
+		$rateRow["rate"],
+		$projectionPeriod,
+		$enabled
+	);
 	$projection["status"] = $enabled ? "active" : "disabled";
 	return $projection;
 }

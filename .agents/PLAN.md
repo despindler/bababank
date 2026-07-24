@@ -27,9 +27,9 @@ Primary guidance: Read `.agents/CODEX.md` before starting or resuming work.
   - Restricted injected `--as-of` values to test environments and documented the production recovery runbook without adding a public maintenance endpoint or changing an external scheduler.
   - Verification: 21 real-MySQL tests cover pre/post month close, retry, three-month dry-run compounding, zero persistent dry-run changes, per-customer failure continuation, non-zero structured CLI failures, production clock guard, and overlapping command suppression.
 - Milestone 5: Completed on 2026-07-24.
-  - Extended authenticated customer KPIs with a server-calculated, eligibility-aware projection for the current Zurich business period, including stable active, disabled, ineligible, and unavailable states.
+  - Extended authenticated customer KPIs with a server-calculated, eligibility-aware projection for the current or next eligible Zurich business period, including stable active, disabled, ineligible, and unavailable states.
   - Added the responsive `Voraussichtlicher Monatszins` dashboard card with amount, monthly percentage, first-of-next-month date, provisional-balance explanation, and distinct zero/negative presentation.
-  - Added a test-only August 2026 HTTP clock, customer-isolation coverage, projection-state database tests, and desktop/mobile UI assertions without duplicating financial rules in JavaScript.
+  - Added a test-only pre-cutover July 2026 HTTP clock, customer-isolation coverage, projection-state database tests, and desktop/mobile UI assertions without duplicating financial rules in JavaScript.
   - Monthly-interest reward queues now carry an explicit `Monatszins` step label while retaining their period-specific titles and gold chest treatment, distinct from crystal achievement rewards.
   - Verification: 19 unit tests, 22 real-MySQL tests, and 24 focused desktop/mobile Playwright tests passed.
 - Milestone 6: Completed on 2026-07-24.
@@ -47,6 +47,11 @@ Primary guidance: Read `.agents/CODEX.md` before starting or resuming work.
   - Added an expanding shockwave, stage recoil, spring amount reveal, and deterministic gold/crystal particle palettes with mixed spark and star shapes.
   - Kept the server open request single-shot, blocked duplicate activation, preserved independent queued chests, and added an immediate particle-free path for reduced motion.
   - Verification: JavaScript syntax and focused desktop/mobile interaction tests passed; 62 functional Playwright checks passed; 8 reviewed visual comparisons passed twice consecutively.
+- Pre-cutover forecast correction: Completed on 2026-07-24.
+  - Changed projection selection to use the earliest current or future month covered by both the customer's eligibility intervals and the global rate schedule.
+  - Existing customers can therefore see the August 2026 estimate during July, with a September 1 posting date, without making July interest-bearing.
+  - Preserved unavailable behavior for customers with no current or future eligibility, disabled-rate behavior, and zero/negative balance estimates.
+  - Verification: PHP and JavaScript syntax passed; 20 unit tests, 22 real-MySQL tests, 62 functional Playwright checks, and 8 visual comparisons passed.
 - Implementation complete. Production migration and scheduler activation remain rollout operations and were not performed by this repository work.
 
 ## 1. Objective

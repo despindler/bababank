@@ -357,7 +357,16 @@ final class MonthlyInterestProjection
 			throw new MonthlyInterestDomainException("Monthly interest clock must return DateTimeImmutable.");
 		}
 
-		$period = MonthlyInterestPeriod::containing($now);
+		return self::buildForPeriod(
+			$balance,
+			$rate,
+			MonthlyInterestPeriod::containing($now),
+			$enabled
+		);
+	}
+
+	public static function buildForPeriod($balance, $rate, MonthlyInterestPeriod $period, $enabled = true)
+	{
 		$balanceCents = MonthlyInterestMoney::toCents($balance);
 		$amountCents = $enabled ? MonthlyInterestMoney::interestCents($balanceCents, $rate) : 0;
 

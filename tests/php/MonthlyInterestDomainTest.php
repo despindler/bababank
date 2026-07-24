@@ -115,6 +115,17 @@ function registerMonthlyInterestDomainTests(TestRunner $runner)
 		), MonthlyInterestProjection::build("125.00", "0.0008", $clock));
 	});
 
+	$runner->test("builds a projection for an explicitly selected future period", function(TestRunner $test) {
+		$projection = MonthlyInterestProjection::buildForPeriod(
+			"125.00",
+			"0.0008",
+			MonthlyInterestPeriod::fromKey("2026-08")
+		);
+		$test->assertSame("2026-08", $projection["period"]);
+		$test->assertSame("0.10", $projection["estimated_amount"]);
+		$test->assertSame("2026-09-01", $projection["posting_date"]);
+	});
+
 	$runner->test("builds a disabled projection without projected money", function(TestRunner $test) {
 		$clock = new FixedMonthlyInterestClock(
 			new DateTimeImmutable("2026-07-24 09:30:00", new DateTimeZone("UTC"))

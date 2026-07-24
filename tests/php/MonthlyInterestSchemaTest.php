@@ -162,13 +162,13 @@ function registerMonthlyInterestSchemaTests(TestRunner $runner)
 		}
 	});
 
-	$runner->test("customer projection covers positive zero negative disabled and ineligible states", function(TestRunner $test) {
+	$runner->test("customer projection covers future positive zero negative disabled and ineligible states", function(TestRunner $test) {
 		$customerIds = array();
 		$clock = new FixedMonthlyInterestClock(
 			new DateTimeImmutable("2026-08-15 12:00:00", new DateTimeZone("Europe/Zurich"))
 		);
 		try {
-			foreach (array("positive", "zero", "negative", "ineligible") as $suffix) {
+			foreach (array("positive", "zero", "negative", "future", "ineligible") as $suffix) {
 				dbExecute(
 					"INSERT INTO customers (fullname, username, userpassword, boss, realm)
 					VALUES (:fullname, :username, 'hash', 0, 991003)",
@@ -180,7 +180,7 @@ function registerMonthlyInterestSchemaTests(TestRunner $runner)
 				$customerIds[$suffix] = (int) getDB()->lastInsertId();
 			}
 
-			foreach (array("positive", "zero", "negative") as $suffix) {
+			foreach (array("positive", "zero", "negative", "future") as $suffix) {
 				dbOpenInterestEligibility($customerIds[$suffix], "2026-08");
 			}
 			dbExecute(
@@ -192,6 +192,11 @@ function registerMonthlyInterestSchemaTests(TestRunner $runner)
 				"INSERT INTO transactions (customer, amount, balance, approved, undone)
 				VALUES (:customer, -25.00, -25.00, 1, 0)",
 				array("customer" => $customerIds["negative"])
+			);
+			dbExecute(
+				"INSERT INTO transactions (customer, amount, balance, approved, undone)
+				VALUES (:customer, 200.00, 200.00, 1, 0)",
+				array("customer" => $customerIds["future"])
 			);
 
 			$positive = dbMonthlyInterestProjectionForCustomer(
@@ -208,6 +213,19 @@ function registerMonthlyInterestSchemaTests(TestRunner $runner)
 			$test->assertSame("0.10", $positive["estimated_amount"]);
 			$test->assertSame("2026-09-01", $positive["posting_date"]);
 			$test->assertSame("Europe/Zurich", $positive["timezone"]);
+
+			$future = dbMonthlyInterestProjectionForCustomer(
+				$customerIds["future"],
+				dbBalanceByCustomer($customerIds["future"]),
+				new FixedMonthlyInterestClock(
+					new DateTimeImmutable("2026-07-24 12:00:00", new DateTimeZone("Europe/Zurich"))
+				)
+			);
+			$test->assertSame("active", $future["status"]);
+			$test->assertSame("2026-08", $future["period"]);
+			$test->assertSame("200.00", $future["balance_basis_estimate"]);
+			$test->assertSame("0.16", $future["estimated_amount"]);
+			$test->assertSame("2026-09-01", $future["posting_date"]);
 
 			$zero = dbMonthlyInterestProjectionForCustomer(
 				$customerIds["zero"],

@@ -92,7 +92,7 @@ test("counts inbound and outbound approved non-undone transactions", async ({ re
 	expect(payload.result.nofouts).toBe(1);
 });
 
-test("returns the server-calculated August monthly interest projection", async ({ request }) => {
+test("forecasts the August cutover period while the current month is July", async ({ request }) => {
 	await request.post("/backend/auth/login", {
 		data: {
 			username: fixture.customerUsername,
