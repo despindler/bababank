@@ -5,6 +5,7 @@
   "scripts": {
     "dev:test": "node tools/php-dev-server.js",
     "db:test:reset": "php tools/reset-test-database.php",
+    "interest:process": "php tools/post-monthly-interest.php",
     "test:db": "php tests/php/run-db.php",
     "test:migration": "php tests/php/run-migration.php",
     "test:unit": "php tests/php/run-unit.php",

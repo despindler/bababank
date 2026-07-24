@@ -72,8 +72,8 @@ function dbWithRunningBalances($transactions)
 		if (!isset($balances[$customer])) {
 			$balances[$customer] = 0;
 		}
-		$balances[$customer] += (float) $current["amount"];
-		$transactions[$i]["balance"] = round($balances[$customer], 2);
+		$balances[$customer] += MonthlyInterestMoney::toCents($current["amount"]);
+		$transactions[$i]["balance"] = (float) MonthlyInterestMoney::fromCents($balances[$customer]);
 	}
 
 	usort($transactions, function($a, $b) {
@@ -282,16 +282,22 @@ function dbInsertSystemTransaction($customer, $amount, $kind, $note)
 function dbTransactionDelete($id)
 {
 	$transaction = dbFetchOne(
-		"SELECT customer FROM transactions WHERE id = :id",
+		"SELECT customer, kind FROM transactions WHERE id = :id",
 		array("id" => (int) $id)
 	);
+	if (!$transaction || $transaction["kind"] === "monthly_interest") {
+		return 0;
+	}
 
 	$stmt = dbExecute(
-		"UPDATE transactions SET undone = 1 WHERE id = :id",
+		"UPDATE transactions
+		SET undone = 1
+		WHERE id = :id
+		AND kind <> 'monthly_interest'",
 		array("id" => (int) $id)
 	);
 
-	if ($transaction) {
+	if ($stmt->rowCount() > 0) {
 		dbRecalculateBalancesForCustomer((int) $transaction["customer"]);
 	}
 
@@ -310,9 +316,10 @@ function dbRecalculateBalancesForCustomer($customer)
 		array("customer" => (int) $customer)
 	);
 
-	$balance = 0;
+	$balanceCents = 0;
 	foreach ($transactions as $transaction) {
-		$balance = round($balance + (float) $transaction["amount"], 2);
+		$balanceCents += MonthlyInterestMoney::toCents($transaction["amount"]);
+		$balance = MonthlyInterestMoney::fromCents($balanceCents);
 		dbExecute(
 			"UPDATE transactions SET balance = :balance WHERE id = :id",
 			array(
@@ -322,7 +329,7 @@ function dbRecalculateBalancesForCustomer($customer)
 		);
 	}
 
-	return $balance;
+	return (float) MonthlyInterestMoney::fromCents($balanceCents);
 }
 
 /*
@@ -688,7 +695,7 @@ function dbRewardConfigAll()
 	);
 }
 
-function dbUpdateRewardConfig($configs)
+function dbUpdateRewardConfig($configs, ?DateTimeImmutable $asOf = null)
 {
 	$db = getDB();
 	$db->beginTransaction();
@@ -705,9 +712,20 @@ function dbUpdateRewardConfig($configs)
 			);
 		}
 
-		if (array_key_exists("monthly_interest_rate", $configs)) {
-			$nextPeriod = MonthlyInterestPeriod::containing(new DateTimeImmutable("now"))->next()->key() . "-01";
-			dbScheduleMonthlyInterestRate($nextPeriod, $configs["monthly_interest_rate"]);
+		if (
+			array_key_exists("monthly_interest_rate", $configs)
+			|| array_key_exists("reward_monthly_interest_enabled", $configs)
+		) {
+			$asOf = $asOf ?: new DateTimeImmutable("now");
+			$nextPeriod = MonthlyInterestPeriod::containing($asOf)->next()->key() . "-01";
+			$enabledValue = array_key_exists("reward_monthly_interest_enabled", $configs)
+				? $configs["reward_monthly_interest_enabled"]
+				: dbRewardConfigValue("reward_monthly_interest_enabled");
+			$enabled = in_array(strtolower((string) $enabledValue), array("1", "true", "yes", "on"), true);
+			$rate = array_key_exists("monthly_interest_rate", $configs)
+				? $configs["monthly_interest_rate"]
+				: dbRewardConfigValue("monthly_interest_rate");
+			dbScheduleMonthlyInterestRate($nextPeriod, $enabled ? $rate : "0");
 		}
 
 		$result = dbRewardConfigAll();

@@ -17,6 +17,7 @@ The app is a plain PHP and plain JavaScript site:
 - `site/backend/backend.php` defines the JSON API routes.
 - `site/backend/database.php` contains the PDO-based MySQL/MariaDB access functions.
 - `site/backend/monthly_interest.php` contains deterministic monthly-interest money, period, rate, and projection rules.
+- `site/backend/monthly_interest_processor.php` atomically settles every due customer/month and creates linked transactions and reward chests.
 - `site/backend/google_auth.php` verifies Google Identity Services ID tokens server-side.
 - `site/backend/rewards.php` contains the configurable reward and interest logic.
 - `site/backend/flight/` is a vendored copy of the Flight PHP micro-framework.
@@ -79,7 +80,7 @@ Tables:
   - important columns: `id`, `customer`, `datetime`, `amount`, `balance`, `kind`, `note`, `approved`, `undone`
   - linked to `customers.id`
 - `customer_reward_state`
-  - generic per-customer reward state, such as current savings level, input-lead state, monthly interest period, and daily chest display date
+  - generic per-customer reward state, such as current savings level, input-lead state, and daily chest display date
 - `reward_events`
   - auditable reward queue rows shown as customer chests
   - links interest rewards to the transaction that created money
@@ -121,7 +122,9 @@ Current migrations:
   - creates monthly-interest rate history, customer eligibility intervals, and the posting ledger
   - explicitly sets August 2026 as the first accrual period, with the first posting due on September 1, 2026
   - initializes the August rate from the existing global reward configuration
-  - retains the legacy lazy-period state only for the staged rollout; the posting-engine milestone removes it when the new processor takes over
+  - retains the legacy lazy-period state only for the staged rollout
+- `database/migrations/20260724_002_remove_legacy_monthly_interest_state.sql`
+  - removes the obsolete login-triggered monthly-interest state after the atomic processor takes over
 
 `database/seed.sql` intentionally omits all rows from `leases`; sessions are runtime state and should not be restored from the historical live dump. It preserves live customers, password hashes, transaction history, balances, `approved`, and `undone` flags.
 
@@ -140,7 +143,7 @@ Read routes:
 - `GET /backend/customers/{id}/transactions`
   - returns non-undone transactions for one customer; non-boss users may only request their own ID
 - `GET /backend/customers/me/kpis`
-  - lazily applies monthly interest when due, then returns balance, pig count, incoming count, and outgoing count for the logged-in customer
+  - returns balance, pig count, incoming count, and outgoing count for the logged-in customer
 - `GET /backend/customers/{id}/kpis`
   - returns balance, pig count, incoming count, and outgoing count; non-boss users may only request their own ID
 - `GET /backend/customers`
@@ -154,7 +157,6 @@ Read routes:
 - `GET /backend/customers/me/rewards/daily`
   - returns unopened rewards for the logged-in customer
   - unopened reward events are not suppressed by an earlier same-day empty check, so deposits added later still appear on the next customer login
-  - also runs the lazy monthly-interest check
 
 Write/auth routes:
 
@@ -249,6 +251,8 @@ Optional variables:
 
 These reward environment variables are fallback defaults. Once `reward_config` exists, boss-managed reward settings are read from the database first.
 
+Monthly-interest rate changes take effect in the next calendar month. Disabling monthly interest schedules a zero rate for the next month, so disabled months are settled without money or chests and are not back-paid after re-enabling.
+
 Google sign-in requires the production PHP runtime to be able to make outbound HTTPS requests to the Google public key endpoint. The verifier first tries `file_get_contents()` when `allow_url_fopen` is enabled, then falls back to cURL when the PHP cURL extension is available.
 
 Typical local setup:
@@ -267,6 +271,24 @@ Then open:
 
 - `http://localhost:8000/` for customer login
 - `http://localhost:8000/boss/` for boss/admin login
+
+## Monthly Interest Processing
+
+Run the idempotent posting processor from the repository root:
+
+```powershell
+npm run interest:process
+```
+
+It settles every eligible closed month oldest first. Each customer is locked and processed transactionally. A non-zero settlement creates one `monthly_interest` transaction and one period-specific reward chest; zero or negative balance periods create only the auditable posting row.
+
+For controlled recovery or deterministic verification, an explicit instant and customer can be supplied:
+
+```powershell
+php tools/post-monthly-interest.php --as-of=2026-11-01T00:00:00+01:00 --customer=123
+```
+
+Customer KPI and reward reads never post interest. Production scheduling and monitoring are added in the next operational milestone; until then this command is the only posting entry point.
 
 ## Browser Testing
 
@@ -329,8 +351,8 @@ Recent checks were run against `.env.test` with the PHP built-in server.
 - HTTP smoke checks returned 200 for `/`, `/customer/`, `/boss/`, `/styles.css`, and `/app.js`.
 - Password login, session cookies, customer KPI/transaction APIs, boss login, boss customer listing, and boss transaction listing were verified with temporary test users and then cleaned up.
 - `npm run test:unit` passed 19 deterministic monthly-interest domain tests.
-- `npm run test:db` passed 8 real-MySQL schema, fixed-decimal, uniqueness, UTC-session, rate-history, and archive/restore eligibility checks.
-- `npm run test:migration` passed 6 migration checks, including cent-preserving conversion, explicit August 2026 cutover, rate initialization, eligibility initialization, and staged legacy-state retention.
-- `npm test` passed 40 Playwright checks across desktop Chromium and mobile Chrome, including banking KPI behavior, sortable transaction tables, boss management views, user archiving/restoring, reward configuration, reward events, daily reward queues, lazy monthly interest, and smoke screenshots.
+- `npm run test:db` passed 16 real-MySQL checks, including schema constraints, exact cutoff balance selection, three-month compounding, per-period rates and chests, zero settlements, archive gaps, rollback, concurrent processing, idempotency, and protected system transactions.
+- `npm run test:migration` passed 7 migration checks, including cent-preserving conversion, explicit August 2026 cutover, rate and eligibility initialization, staged legacy-state retention, and final legacy-state removal.
+- `npm test` passed 40 Playwright checks across desktop Chromium and mobile Chrome, including confirmation that customer reads no longer trigger interest posting.
 - A manual Playwright visual pass verified the boss Banking, Users, and Rewards views on desktop and the Rewards view on mobile.
 - Google token verification still requires a real Google ID token and PHP OpenSSL. The server-side Google auth path is present, but end-to-end Google sign-in should be rechecked in a browser after configuring a valid Google client.

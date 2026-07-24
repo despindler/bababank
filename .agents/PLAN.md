@@ -18,7 +18,11 @@ Primary guidance: Read `.agents/CODEX.md` before starting or resuming work.
   - Set August 2026 as the explicit first accrual period, with the first posting effective September 1, 2026.
   - Added scheduled-next-period rate updates and archive/restore eligibility handling.
   - Verification: 19 unit tests, 8 fresh-schema database tests, 6 migration tests, and 40 Playwright tests passed against local MySQL.
-- Next milestone: Milestone 3 — Atomic Posting and Catch-Up Processor.
+- Milestone 3: Completed on 2026-07-24.
+  - Added the atomic, customer-locked processor and CLI entry point, chronological catch-up with compounding, period-specific transactions/chests, zero settlements, fixed-cent running balances, and protected system transactions.
+  - Removed all runtime lazy-posting paths and added the ordered migration that deletes obsolete `monthly_interest_period` state.
+  - Verification: 19 unit tests, 16 real-MySQL schema/processor tests, 7 migration tests, and the browser suite passed; concurrent workers produced one payment.
+- Next milestone: Milestone 4 — Automatic CLI Execution and Recovery.
 
 ## 1. Objective
 
@@ -53,6 +57,7 @@ The following decisions govern the implementation:
 The approved plan also adopts these operational defaults:
 
 - Rate changes take effect from the next open interest period. Closed periods retain their historical rate.
+- Disabling monthly interest schedules a zero rate for the next open period; disabled periods settle without money or chests and are not later back-paid.
 - Zero-value periods are recorded as settled but do not create a zero-value transaction or chest.
 - Posted interest is final. Later changes to old manual transactions do not automatically recalculate closed periods.
 - System-created interest transactions cannot be independently deleted.
@@ -64,13 +69,12 @@ If any of these defaults must change, update this file before implementing the a
 ## 3. Current-System Facts and Constraints
 
 - The application is plain PHP, MySQL/MariaDB, HTML, CSS, and JavaScript.
-- `site/backend/rewards.php` currently implements monthly interest through `rewardsRunLazyMonthlyForCustomer()`.
-- The lazy check runs from customer KPI and daily-reward reads.
-- Current state stores only a `monthly_interest_period` string and does not support reliable multi-month catch-up.
-- Current monthly posting is not atomic across state, transaction, balance recalculation, and reward-event creation.
-- Current posting has no database uniqueness guarantee and can duplicate under concurrent requests.
-- The rate is stored in global `reward_config`.
-- Transactions and reward money values currently use floating-point database columns in places.
+- Before Milestone 3, `site/backend/rewards.php` implemented monthly interest through `rewardsRunLazyMonthlyForCustomer()`.
+- The former lazy check ran from customer KPI and daily-reward reads and stored only a `monthly_interest_period` string.
+- Milestone 3 removed that path and replaced it with the transactionally locked catch-up processor.
+- The posting ledger now enforces customer-period uniqueness in the database.
+- The boss-facing rate remains global, while effective historical values are stored in `monthly_interest_rates`.
+- Transaction and reward money columns now use fixed two-decimal database values.
 - The existing reward modal already displays queued reward events individually; one event per month naturally results in one chest per month.
 - There is no scheduled-job implementation in the repository.
 - Tests use Playwright and a real MySQL database through `.env.test`.
@@ -264,7 +268,7 @@ Create an auditable persistence model with database-enforced uniqueness and expl
 - The database itself prevents duplicate customer-period settlements.
 - Cutover behavior is explicit, documented, and covered by a fixture.
 
-## 9. Milestone 3 — Atomic Posting and Catch-Up Processor
+## 9. Milestone 3 — Atomic Posting and Catch-Up Processor (Completed 2026-07-24)
 
 ### Goal
 

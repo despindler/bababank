@@ -30,7 +30,6 @@ $bossUsername = 'reward_boss_' . $stamp;
 dbExecute('INSERT INTO customers (fullname, username, userpassword, boss, realm) VALUES (:fullname, :username, :userpassword, 0, :realm)', array('fullname' => 'Reward Test Customer', 'username' => $customerUsername, 'userpassword' => $hash, 'realm' => $realm));
 $customerId = (int) getDB()->lastInsertId();
 dbExecute('INSERT INTO transactions (customer, amount, balance, approved, undone) VALUES (:customer, -5.00, -5.00, 1, 0)', array('customer' => $customerId));
-dbExecute('INSERT INTO customer_reward_state (customer, state_key, state_value) VALUES (:customer, :state_key, :state_value)', array('customer' => $customerId, 'state_key' => 'monthly_interest_period', 'state_value' => date('Y-m')));
 dbExecute('INSERT INTO customer_reward_state (customer, state_key, state_value) VALUES (:customer, :state_key, :state_value)', array('customer' => $customerId, 'state_key' => 'savings_level', 'state_value' => '0'));
 dbExecute('INSERT INTO customer_reward_state (customer, state_key, state_value) VALUES (:customer, :state_key, :state_value)', array('customer' => $customerId, 'state_key' => 'input_lead_active', 'state_value' => '0'));
 
@@ -114,7 +113,7 @@ test("creates deposit and achievement reward events from bottom-up movements", a
 	]);
 });
 
-test("pays monthly interest lazily once per month", async ({ request }) => {
+test("customer reads do not trigger monthly interest posting", async ({ request }) => {
 	await request.post("/backend/auth/login", {
 		data: {
 			username: fixture.monthlyUsername,
@@ -125,18 +124,15 @@ test("pays monthly interest lazily once per month", async ({ request }) => {
 	const kpiResponse = await request.get("/backend/customers/me/kpis");
 	const kpiPayload = await kpiResponse.json();
 	expect(kpiPayload.success).toBe(true);
-	expect(kpiPayload.result.balance).toBe(100.08);
+	expect(kpiPayload.result.balance).toBe(100);
 
 	const dailyResponse = await request.get("/backend/customers/me/rewards/daily");
 	const dailyPayload = await dailyResponse.json();
-	expect(dailyPayload.result).toHaveLength(1);
-	expect(dailyPayload.result[0].reward_key).toBe("monthly_interest");
-	expect(dailyPayload.result[0].chest_variant).toBe("gold");
-	expect(Number(dailyPayload.result[0].amount)).toBe(0.08);
+	expect(dailyPayload.result).toHaveLength(0);
 
 	const secondKpiResponse = await request.get("/backend/customers/me/kpis");
 	const secondKpiPayload = await secondKpiResponse.json();
-	expect(secondKpiPayload.result.balance).toBe(100.08);
+	expect(secondKpiPayload.result.balance).toBe(100);
 });
 
 test("does not suppress rewards created after an earlier same-day empty check", async ({ request }) => {
@@ -150,7 +146,6 @@ $customerUsername = 'late_reward_customer_' . $stamp;
 $bossUsername = 'late_reward_boss_' . $stamp;
 dbExecute('INSERT INTO customers (fullname, username, userpassword, boss, realm) VALUES (:fullname, :username, :userpassword, 0, :realm)', array('fullname' => 'Late Reward Customer', 'username' => $customerUsername, 'userpassword' => $hash, 'realm' => $realm));
 $customerId = (int) getDB()->lastInsertId();
-dbExecute('INSERT INTO customer_reward_state (customer, state_key, state_value) VALUES (:customer, :state_key, :state_value)', array('customer' => $customerId, 'state_key' => 'monthly_interest_period', 'state_value' => date('Y-m')));
 dbExecute('INSERT INTO customer_reward_state (customer, state_key, state_value) VALUES (:customer, :state_key, :state_value)', array('customer' => $customerId, 'state_key' => 'savings_level', 'state_value' => '0'));
 dbExecute('INSERT INTO customer_reward_state (customer, state_key, state_value) VALUES (:customer, :state_key, :state_value)', array('customer' => $customerId, 'state_key' => 'input_lead_active', 'state_value' => '0'));
 dbExecute('INSERT INTO customer_reward_state (customer, state_key, state_value) VALUES (:customer, :state_key, :state_value)', array('customer' => $customerId, 'state_key' => 'last_daily_chest_date', 'state_value' => date('Y-m-d')));

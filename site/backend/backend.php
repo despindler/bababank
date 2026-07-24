@@ -74,7 +74,6 @@ function transactionsByCustomer($customer)
 
 function kpisByCustomer($customer)
 {
-	rewardsRunLazyMonthlyForCustomer($customer);
 	$balance = dbBalanceByCustomer($customer);
 	if (!$balance) {
 		$balance = 0;

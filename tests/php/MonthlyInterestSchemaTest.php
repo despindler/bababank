@@ -99,6 +99,32 @@ function registerMonthlyInterestSchemaTests(TestRunner $runner)
 		}
 	});
 
+	$runner->test("disabling monthly interest schedules a zero rate for the next period", function(TestRunner $test) {
+		try {
+			dbUpdateRewardConfig(
+				array("reward_monthly_interest_enabled" => "false"),
+				new DateTimeImmutable("2026-12-15 12:00:00", new DateTimeZone("Europe/Zurich"))
+			);
+			$disabled = dbMonthlyInterestRateForPeriod("2027-01");
+			$test->assertSame("2027-01-01", $disabled["effective_period"]);
+			$test->assertSame("0.00000000", $disabled["rate"]);
+
+			dbUpdateRewardConfig(
+				array("reward_monthly_interest_enabled" => "true"),
+				new DateTimeImmutable("2026-12-15 12:00:00", new DateTimeZone("Europe/Zurich"))
+			);
+			$enabled = dbMonthlyInterestRateForPeriod("2027-01");
+			$test->assertSame("0.00080000", $enabled["rate"]);
+		} finally {
+			dbExecute(
+				"UPDATE reward_config
+				SET config_value = 'true'
+				WHERE config_key = 'reward_monthly_interest_enabled'"
+			);
+			dbExecute("DELETE FROM monthly_interest_rates WHERE effective_period = '2027-01-01'");
+		}
+	});
+
 	$runner->test("archive and restore preserve an ineligible archived gap", function(TestRunner $test) {
 		dbExecute(
 			"INSERT INTO customers (fullname, username, userpassword, boss, realm)

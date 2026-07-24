@@ -46,7 +46,6 @@ $customerId = (int) getDB()->lastInsertId();
 dbExecute("INSERT INTO transactions (customer, datetime, amount, balance, approved, undone) VALUES (:customer, '2026-01-01 10:00:00', 125.50, 125.50, 1, 0)", array('customer' => $customerId));
 dbExecute("INSERT INTO transactions (customer, datetime, amount, balance, approved, undone) VALUES (:customer, '2026-01-01 11:00:00', -20.00, 105.50, 1, 0)", array('customer' => $customerId));
 dbExecute("INSERT INTO transactions (customer, datetime, amount, balance, approved, undone) VALUES (:customer, '2026-01-01 12:00:00', 20.00, 125.50, 1, 0)", array('customer' => $customerId));
-dbExecute('INSERT INTO customer_reward_state (customer, state_key, state_value) VALUES (:customer, :state_key, :state_value)', array('customer' => $customerId, 'state_key' => 'monthly_interest_period', 'state_value' => date('Y-m')));
 dbExecute('INSERT INTO customer_reward_state (customer, state_key, state_value) VALUES (:customer, :state_key, :state_value)', array('customer' => $customerId, 'state_key' => 'savings_level', 'state_value' => '1'));
 dbExecute('INSERT INTO customer_reward_state (customer, state_key, state_value) VALUES (:customer, :state_key, :state_value)', array('customer' => $customerId, 'state_key' => 'input_lead_active', 'state_value' => '1'));
 dbExecute('INSERT INTO customers (fullname, username, userpassword, boss, realm) VALUES (:fullname, :username, :userpassword, 1, :realm)', array('fullname' => 'Playwright Test Boss', 'username' => $bossUsername, 'userpassword' => $hash, 'realm' => $realm));

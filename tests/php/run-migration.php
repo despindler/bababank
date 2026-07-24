@@ -151,6 +151,20 @@ try {
 		$test->assertSame(1, $count);
 	});
 
+	$runner->test("posting-engine migration removes the obsolete lazy state", function(TestRunner $test) use ($db) {
+		migrationTestSql(
+			$db,
+			__DIR__ . "/../../database/migrations/20260724_002_remove_legacy_monthly_interest_state.sql"
+		);
+		$count = (int) migrationTestFetchOne(
+			$db,
+			"SELECT COUNT(*) AS total
+			FROM customer_reward_state
+			WHERE state_key = 'monthly_interest_period'"
+		)["total"];
+		$test->assertSame(0, $count);
+	});
+
 	$status = $runner->finish();
 } finally {
 	$db = null;

@@ -22,15 +22,6 @@ function rewardRate($key, $fallback = "ACHIEVEMENT_INTEREST_RATE")
 	return envFloat($specific, envFloat($fallback, 0.0008));
 }
 
-function rewardMonthlyRate()
-{
-	$config = dbRewardConfigValue("monthly_interest_rate");
-	if ($config !== null && $config !== "") {
-		return (float) $config;
-	}
-	return envFloat("MONTHLY_INTEREST_RATE", 0.0008);
-}
-
 function rewardSavingsMilestoneStep()
 {
 	$config = dbRewardConfigValue("savings_milestone_step");
@@ -44,11 +35,6 @@ function rewardAmountForBalance($balance, $rate)
 {
 	$amount = round(max(0, (float) $balance) * (float) $rate, 2);
 	return $amount > 0 ? $amount : 0;
-}
-
-function rewardCurrentPeriod()
-{
-	return date("Y-m");
 }
 
 function rewardToday()
@@ -179,39 +165,9 @@ function rewardsAfterManualMovement($movement)
 	return dbBalanceByCustomer((int) $movement["customer"]);
 }
 
-function rewardsRunLazyMonthlyForCustomer($customer)
-{
-	$customer = (int) $customer;
-	if (!rewardEnabled("MONTHLY_INTEREST")) {
-		return;
-	}
-
-	$period = rewardCurrentPeriod();
-	if (dbRewardState($customer, "monthly_interest_period", "") === $period) {
-		return;
-	}
-
-	dbSetRewardState($customer, "monthly_interest_period", $period);
-	$rate = rewardMonthlyRate();
-	$event = rewardsCreateInterestEvent(
-		$customer,
-		"monthly_interest",
-		"Monatszins",
-		"Dein Pocket hat Zins bekommen.",
-		$period,
-		$rate,
-		"gold"
-	);
-
-	if ($event !== null) {
-		rewardsEvaluateAchievementsForCustomer($customer);
-	}
-}
-
 function rewardsDailyQueueForCustomer($customer)
 {
 	$customer = (int) $customer;
-	rewardsRunLazyMonthlyForCustomer($customer);
 
 	$events = dbUnopenedRewardEvents($customer);
 	if (count($events) > 0) {
