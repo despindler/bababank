@@ -4,6 +4,7 @@
   "description": "Ba Ba Bank is a small German-language family banking app with customer dashboards, boss account management, transactions, and reward chests.",
   "scripts": {
     "dev:test": "node tools/php-dev-server.js",
+    "test:unit": "php tests/php/run-unit.php",
     "test": "playwright test",
     "test:headed": "playwright test --headed"
   },

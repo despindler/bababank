@@ -257,6 +257,12 @@ Then open:
 
 Playwright is configured for frontend smoke testing against the PHP app. The tests use `.env.test`, create temporary customer and boss users in a disposable test realm, log in through the UI, capture screenshots, and clean up the temporary rows.
 
+Pure monthly-interest domain rules can be verified without a database or browser:
+
+```powershell
+npm run test:unit
+```
+
 Install dependencies and Chromium when needed:
 
 ```powershell
