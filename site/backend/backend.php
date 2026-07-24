@@ -72,7 +72,20 @@ function transactionsByCustomer($customer)
 	);
 }
 
-function kpisByCustomer($customer)
+function monthlyInterestProjectionClock()
+{
+	$testNow = trim((string) envValue("MONTHLY_INTEREST_TEST_NOW", ""));
+	$environment = strtolower(trim((string) envValue("APP_ENV", envValue("BABABANK_ENV", ""))));
+	$envFile = str_replace("\\", "/", strtolower(trim((string) envValue("BABABANK_ENV_FILE", ""))));
+	$isTest = $environment === "test" || substr($envFile, -9) === ".env.test";
+
+	if ($testNow !== "" && $isTest) {
+		return new FixedMonthlyInterestClock(new DateTimeImmutable($testNow));
+	}
+	return new SystemMonthlyInterestClock();
+}
+
+function kpisByCustomer($customer, ?MonthlyInterestClock $clock = null)
 {
 	$balance = dbBalanceByCustomer($customer);
 	if (!$balance) {
@@ -89,6 +102,11 @@ function kpisByCustomer($customer)
 			"nofpigs" => $nofpigs,
 			"nofins" => (int) $nofinandout["nofin"],
 			"nofouts" => (int) $nofinandout["nofout"],
+			"monthly_interest" => dbMonthlyInterestProjectionForCustomer(
+				$customer,
+				$balance,
+				$clock ?: monthlyInterestProjectionClock()
+			),
 		),
 	);
 }

@@ -26,7 +26,13 @@ Primary guidance: Read `.agents/CODEX.md` before starting or resuming work.
   - Hardened the shared CLI with an hourly scheduler contract, database advisory lock, dry-run simulation, customer-scoped recovery, structured period totals/errors, and non-zero failure exits.
   - Restricted injected `--as-of` values to test environments and documented the production recovery runbook without adding a public maintenance endpoint or changing an external scheduler.
   - Verification: 21 real-MySQL tests cover pre/post month close, retry, three-month dry-run compounding, zero persistent dry-run changes, per-customer failure continuation, non-zero structured CLI failures, production clock guard, and overlapping command suppression.
-- Next milestone: Milestone 5 — Customer API and UI Projection.
+- Milestone 5: Completed on 2026-07-24.
+  - Extended authenticated customer KPIs with a server-calculated, eligibility-aware projection for the current Zurich business period, including stable active, disabled, ineligible, and unavailable states.
+  - Added the responsive `Voraussichtlicher Monatszins` dashboard card with amount, monthly percentage, first-of-next-month date, provisional-balance explanation, and distinct zero/negative presentation.
+  - Added a test-only August 2026 HTTP clock, customer-isolation coverage, projection-state database tests, and desktop/mobile UI assertions without duplicating financial rules in JavaScript.
+  - Monthly-interest reward queues now carry an explicit `Monatszins` step label while retaining their period-specific titles and gold chest treatment, distinct from crystal achievement rewards.
+  - Verification: 19 unit tests, 22 real-MySQL tests, and 24 focused desktop/mobile Playwright tests passed.
+- Next milestone: Milestone 6 — Playwright Smoke and Visual Coverage.
 
 ## 1. Objective
 

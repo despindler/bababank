@@ -98,6 +98,86 @@ const Bank = (() => {
 		return variant === "crystals" ? "../assets/rewards/chest-open-crystals.png" : "../assets/rewards/chest-open-gold.png";
 	}
 
+	function germanDate(date) {
+		if (typeof date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+			return "";
+		}
+		const parsed = new Date(`${date}T12:00:00`);
+		if (Number.isNaN(parsed.getTime())) {
+			return "";
+		}
+		return new Intl.DateTimeFormat("de-CH", {
+			day: "numeric",
+			month: "long",
+			year: "numeric",
+		}).format(parsed);
+	}
+
+	function renderMonthlyInterest(projection) {
+		const card = qs("#monthly-interest-card");
+		if (!card) {
+			return;
+		}
+
+		const valid = projection
+			&& typeof projection === "object"
+			&& typeof projection.status === "string"
+			&& typeof projection.posting_date === "string";
+		if (!valid) {
+			card.dataset.state = "error";
+			setText("#monthly-interest-amount", "–");
+			setText("#monthly-interest-rate", "Vorschau nicht verfügbar");
+			setText("#monthly-interest-posting", "Die Zinsvorschau konnte nicht geladen werden.");
+			setText("#monthly-interest-explanation", "Bitte versuche es später noch einmal.");
+			return;
+		}
+
+		const postingDate = germanDate(projection.posting_date);
+		if (projection.status === "disabled") {
+			card.dataset.state = "disabled";
+			setText("#monthly-interest-amount", "–");
+			setText("#monthly-interest-rate", "Monatszins deaktiviert");
+			setText("#monthly-interest-posting", "Für diesen Zeitraum ist keine Zinsgutschrift vorgesehen.");
+			setText("#monthly-interest-explanation", postingDate ? `Nächster möglicher Buchungstermin: ${postingDate}.` : "");
+			return;
+		}
+
+		if (projection.status === "not_eligible") {
+			card.dataset.state = "unavailable";
+			setText("#monthly-interest-amount", "–");
+			setText("#monthly-interest-rate", "Noch keine Vorschau");
+			setText("#monthly-interest-posting", "Für diesen Zeitraum ist noch keine Zinsvorschau verfügbar.");
+			setText("#monthly-interest-explanation", "Sobald dein Pocket teilnimmt, erscheint hier die voraussichtliche Gutschrift.");
+			return;
+		}
+
+		if (projection.status !== "active"
+			|| projection.estimated_amount === null
+			|| projection.rate_percent === null
+			|| !postingDate) {
+			card.dataset.state = "error";
+			setText("#monthly-interest-amount", "–");
+			setText("#monthly-interest-rate", "Vorschau nicht verfügbar");
+			setText("#monthly-interest-posting", "Die Zinsvorschau konnte nicht geladen werden.");
+			setText("#monthly-interest-explanation", "Bitte versuche es später noch einmal.");
+			return;
+		}
+
+		const amount = Number(projection.estimated_amount);
+		const balance = Number(projection.balance_basis_estimate);
+		const zeroAmount = !Number.isFinite(amount) || amount <= 0;
+		card.dataset.state = zeroAmount ? "zero" : "active";
+		setText("#monthly-interest-amount", money(zeroAmount ? 0 : amount));
+		setText("#monthly-interest-rate", `${projection.rate_percent} % pro Monat`);
+		setText("#monthly-interest-posting", `Voraussichtliche Gutschrift am ${postingDate}.`);
+		setText(
+			"#monthly-interest-explanation",
+			Number.isFinite(balance) && balance <= 0
+				? "Bei einem Kontostand von null oder darunter entsteht voraussichtlich kein Monatszins."
+				: "Schätzung unter der Annahme, dass dein aktueller Kontostand bis zum Monatsende unverändert bleibt."
+		);
+	}
+
 	function dateTime(value) {
 		if (!value) {
 			return "";
@@ -346,6 +426,7 @@ const Bank = (() => {
 		setText("#kpi-pigs", kpis.nofpigs);
 		setText("#kpi-ins", kpis.nofins);
 		setText("#kpi-outs", kpis.nofouts);
+		renderMonthlyInterest(kpis.monthly_interest);
 		qs("#kpi-balance-sign").innerHTML = Number(kpis.balance) < 0 ? icon("dash-lg") : icon("plus-lg");
 		const progress = qs("#savings-progress");
 		if (progress) {
@@ -383,7 +464,8 @@ const Bank = (() => {
 			return;
 		}
 		rewardOpened = false;
-		setText("#reward-step", `${rewardIndex + 1} / ${rewardQueue.length}`);
+		const monthlyInterest = typeof reward.reward_key === "string" && reward.reward_key.startsWith("monthly_interest:");
+		setText("#reward-step", `${monthlyInterest ? "Monatszins" : "Belohnung"} · ${rewardIndex + 1} / ${rewardQueue.length}`);
 		setText("#reward-title", reward.title || "Pocket Bonus");
 		setText("#reward-description", "Tippe auf die Kiste.");
 		setText("#reward-amount", "");

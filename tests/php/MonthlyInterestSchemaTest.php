@@ -161,6 +161,94 @@ function registerMonthlyInterestSchemaTests(TestRunner $runner)
 			dbExecute("DELETE FROM customers WHERE id = :customer", array("customer" => $customer));
 		}
 	});
+
+	$runner->test("customer projection covers positive zero negative disabled and ineligible states", function(TestRunner $test) {
+		$customerIds = array();
+		$clock = new FixedMonthlyInterestClock(
+			new DateTimeImmutable("2026-08-15 12:00:00", new DateTimeZone("Europe/Zurich"))
+		);
+		try {
+			foreach (array("positive", "zero", "negative", "ineligible") as $suffix) {
+				dbExecute(
+					"INSERT INTO customers (fullname, username, userpassword, boss, realm)
+					VALUES (:fullname, :username, 'hash', 0, 991003)",
+					array(
+						"fullname" => "Projection " . ucfirst($suffix),
+						"username" => "projection_" . $suffix . "_" . random_int(100000, 999999),
+					)
+				);
+				$customerIds[$suffix] = (int) getDB()->lastInsertId();
+			}
+
+			foreach (array("positive", "zero", "negative") as $suffix) {
+				dbOpenInterestEligibility($customerIds[$suffix], "2026-08");
+			}
+			dbExecute(
+				"INSERT INTO transactions (customer, amount, balance, approved, undone)
+				VALUES (:customer, 125.00, 125.00, 1, 0)",
+				array("customer" => $customerIds["positive"])
+			);
+			dbExecute(
+				"INSERT INTO transactions (customer, amount, balance, approved, undone)
+				VALUES (:customer, -25.00, -25.00, 1, 0)",
+				array("customer" => $customerIds["negative"])
+			);
+
+			$positive = dbMonthlyInterestProjectionForCustomer(
+				$customerIds["positive"],
+				dbBalanceByCustomer($customerIds["positive"]),
+				$clock
+			);
+			$test->assertSame("active", $positive["status"]);
+			$test->assertSame(true, $positive["enabled"]);
+			$test->assertSame("2026-08", $positive["period"]);
+			$test->assertSame("125.00", $positive["balance_basis_estimate"]);
+			$test->assertSame("0.0008", $positive["rate"]);
+			$test->assertSame("0.08", $positive["rate_percent"]);
+			$test->assertSame("0.10", $positive["estimated_amount"]);
+			$test->assertSame("2026-09-01", $positive["posting_date"]);
+			$test->assertSame("Europe/Zurich", $positive["timezone"]);
+
+			$zero = dbMonthlyInterestProjectionForCustomer(
+				$customerIds["zero"],
+				dbBalanceByCustomer($customerIds["zero"]),
+				$clock
+			);
+			$negative = dbMonthlyInterestProjectionForCustomer(
+				$customerIds["negative"],
+				dbBalanceByCustomer($customerIds["negative"]),
+				$clock
+			);
+			$test->assertSame("0.00", $zero["estimated_amount"]);
+			$test->assertSame("0.00", $negative["estimated_amount"]);
+			$test->assertSame("-25.00", $negative["balance_basis_estimate"]);
+
+			$ineligible = dbMonthlyInterestProjectionForCustomer(
+				$customerIds["ineligible"],
+				0,
+				$clock
+			);
+			$test->assertSame("not_eligible", $ineligible["status"]);
+			$test->assertSame(false, $ineligible["enabled"]);
+			$test->assertSame(null, $ineligible["rate"]);
+			$test->assertSame(null, $ineligible["estimated_amount"]);
+
+			dbScheduleMonthlyInterestRate("2026-08", "0");
+			$disabled = dbMonthlyInterestProjectionForCustomer(
+				$customerIds["positive"],
+				dbBalanceByCustomer($customerIds["positive"]),
+				$clock
+			);
+			$test->assertSame("disabled", $disabled["status"]);
+			$test->assertSame(false, $disabled["enabled"]);
+			$test->assertSame("0.00", $disabled["estimated_amount"]);
+		} finally {
+			dbScheduleMonthlyInterestRate("2026-08", "0.0008");
+			foreach ($customerIds as $customer) {
+				dbExecute("DELETE FROM customers WHERE id = :customer", array("customer" => $customer));
+			}
+		}
+	});
 }
 
 ?>

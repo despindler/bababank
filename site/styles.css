@@ -479,6 +479,86 @@ body {
 	background: #f2fbff;
 }
 
+.interest-card {
+	position: relative;
+	overflow: hidden;
+	background:
+		linear-gradient(135deg, rgba(184, 228, 69, 0.2), rgba(242, 251, 255, 0.72)),
+		var(--bank-surface);
+}
+
+.interest-card::after {
+	content: "%";
+	position: absolute;
+	right: 1.5rem;
+	top: 50%;
+	color: rgba(32, 36, 51, 0.06);
+	font-size: 9rem;
+	font-weight: 800;
+	line-height: 1;
+	transform: translateY(-50%) rotate(8deg);
+	pointer-events: none;
+}
+
+.interest-card > * {
+	position: relative;
+	z-index: 1;
+}
+
+.interest-card[data-state="disabled"],
+.interest-card[data-state="unavailable"],
+.interest-card[data-state="error"] {
+	background: var(--bank-surface);
+}
+
+.interest-icon {
+	width: 2.5rem;
+	height: 2.5rem;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	flex: 0 0 auto;
+	border-radius: 0.9rem;
+	background: var(--bank-lime);
+	color: var(--bank-ink);
+	font-size: 1.15rem;
+}
+
+.interest-value {
+	font-size: clamp(2.5rem, 8vw, 4.5rem);
+	font-weight: 800;
+	line-height: 1;
+	letter-spacing: -0.05em;
+}
+
+.interest-value::after {
+	content: " Zins";
+	margin-left: 0.4rem;
+	color: var(--bank-muted);
+	font-size: 0.9rem;
+	font-weight: 700;
+	letter-spacing: normal;
+}
+
+.interest-rate {
+	margin-top: 0.75rem;
+	font-weight: 700;
+}
+
+.interest-posting {
+	font-size: clamp(1.05rem, 2vw, 1.25rem);
+	font-weight: 750;
+}
+
+@media (max-width: 575.98px) {
+	.interest-card::after {
+		right: -1rem;
+		top: 2.25rem;
+		font-size: 6rem;
+		transform: rotate(8deg);
+	}
+}
+
 .progress-pocket {
 	height: 1rem;
 	border-radius: 999px;

@@ -11,6 +11,8 @@ const child = spawn(
 		env: {
 			...process.env,
 			BABABANK_ENV_FILE: envFile,
+			MONTHLY_INTEREST_TEST_NOW:
+				process.env.MONTHLY_INTEREST_TEST_NOW || "2026-08-15T12:00:00+02:00",
 		},
 		stdio: "inherit",
 	}

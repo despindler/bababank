@@ -874,6 +874,63 @@ function dbMonthlyInterestRateForPeriod($period)
 	);
 }
 
+function dbCustomerEligibleForMonthlyInterestPeriod($customer, $period)
+{
+	$period = MonthlyInterestPeriod::fromKey(substr((string) $period, 0, 7))->key() . "-01";
+	$row = dbFetchOne(
+		"SELECT id
+		FROM customer_interest_eligibility
+		WHERE customer = :customer
+		AND start_period <= :start_period
+		AND (end_period IS NULL OR end_period > :end_period)
+		ORDER BY start_period DESC
+		LIMIT 1",
+		array(
+			"customer" => (int) $customer,
+			"start_period" => $period,
+			"end_period" => $period,
+		)
+	);
+	return $row !== null;
+}
+
+function dbMonthlyInterestProjectionForCustomer($customer, $balance, MonthlyInterestClock $clock)
+{
+	$now = $clock->now();
+	if (!($now instanceof DateTimeImmutable)) {
+		throw new MonthlyInterestDomainException("Monthly interest clock must return DateTimeImmutable.");
+	}
+
+	$period = MonthlyInterestPeriod::containing($now);
+	$base = array(
+		"enabled" => false,
+		"status" => "unavailable",
+		"period" => $period->key(),
+		"balance_basis_estimate" => MonthlyInterestMoney::fromCents(MonthlyInterestMoney::toCents($balance)),
+		"rate" => null,
+		"rate_percent" => null,
+		"estimated_amount" => null,
+		"posting_date" => $period->postingDate(),
+		"timezone" => MonthlyInterestPeriod::BUSINESS_TIMEZONE,
+		"is_estimate" => true,
+	);
+
+	if (!dbCustomerEligibleForMonthlyInterestPeriod($customer, $period->key())) {
+		$base["status"] = "not_eligible";
+		return $base;
+	}
+
+	$rateRow = dbMonthlyInterestRateForPeriod($period->key());
+	if (!$rateRow) {
+		return $base;
+	}
+
+	$enabled = MonthlyInterestMoney::normalizedRate($rateRow["rate"]) !== "0";
+	$projection = MonthlyInterestProjection::build($balance, $rateRow["rate"], $clock, $enabled);
+	$projection["status"] = $enabled ? "active" : "disabled";
+	return $projection;
+}
+
 function dbRewardOverview($realm)
 {
 	return array(

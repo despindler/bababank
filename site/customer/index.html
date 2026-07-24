@@ -86,6 +86,23 @@
 						</div>
 					</div>
 
+					<section id="monthly-interest-card" class="surface interest-card p-4 p-md-5 mb-4" aria-labelledby="monthly-interest-title" aria-live="polite" data-state="loading">
+						<div class="row align-items-center g-4">
+							<div class="col-md-5">
+								<div class="d-flex align-items-center gap-2 mb-2">
+									<span class="interest-icon" aria-hidden="true"><i class="bi bi-calendar2-heart"></i></span>
+									<div id="monthly-interest-title" class="metric-label">Voraussichtlicher Monatszins</div>
+								</div>
+								<div class="interest-value"><span id="monthly-interest-amount">–</span></div>
+								<div id="monthly-interest-rate" class="interest-rate text-secondary">Vorschau wird geladen …</div>
+							</div>
+							<div class="col-md-7">
+								<p id="monthly-interest-posting" class="interest-posting mb-2"></p>
+								<p id="monthly-interest-explanation" class="text-secondary mb-0"></p>
+							</div>
+						</div>
+					</section>
+
 					<div class="accordion transaction-accordion" id="customer-transactions-accordion">
 						<div class="accordion-item surface">
 							<h2 class="accordion-header" id="customer-transactions-heading">
