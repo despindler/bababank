@@ -13,7 +13,7 @@ final class MonthlyInterestProcessor
 		$this->stepHook = $stepHook;
 	}
 
-	public function processDue(DateTimeImmutable $asOf, $onlyCustomer = null)
+	public function processDue(DateTimeImmutable $asOf, $onlyCustomer = null, $dryRun = false)
 	{
 		$currentPeriod = MonthlyInterestPeriod::containing($asOf);
 		$params = array("current_period" => $currentPeriod->key() . "-01");
@@ -34,28 +34,140 @@ final class MonthlyInterestProcessor
 		);
 
 		$result = array(
+			"status" => "ok",
+			"mode" => $dryRun ? "dry_run" : "apply",
 			"as_of" => $asOf->format(DateTimeInterface::ATOM),
 			"timezone" => MonthlyInterestPeriod::BUSINESS_TIMEZONE,
 			"customers" => 0,
-			"settled" => 0,
-			"zero_settlements" => 0,
-			"transactions" => 0,
+			"totals" => array(
+				"created" => 0,
+				"zero_settled" => 0,
+				"already_settled" => 0,
+				"skipped" => 0,
+				"failed" => 0,
+				"would_create" => 0,
+				"would_zero_settle" => 0,
+			),
+			"results" => array(),
+			"errors" => array(),
 		);
 
 		foreach ($customers as $customer) {
-			$customerResult = $this->processCustomer((int) $customer["id"], $asOf);
 			$result["customers"]++;
-			$result["settled"] += count($customerResult["settlements"]);
-			foreach ($customerResult["settlements"] as $settlement) {
-				if ($settlement["amount"] === "0.00") {
-					$result["zero_settlements"]++;
-				} else {
-					$result["transactions"]++;
+			$customerId = (int) $customer["id"];
+			try {
+				$customerResult = $dryRun
+					? $this->previewCustomer($customerId, $asOf)
+					: $this->processCustomer($customerId, $asOf);
+				$result["totals"]["already_settled"] += count($customerResult["already_settled"]);
+				foreach ($customerResult["settlements"] as &$settlement) {
+					if ($settlement["amount"] === "0.00") {
+						$settlement["status"] = $dryRun ? "would_zero_settle" : "zero_settled";
+						$key = $dryRun ? "would_zero_settle" : "zero_settled";
+						$result["totals"][$key]++;
+					} else {
+						$settlement["status"] = $dryRun ? "would_create" : "created";
+						$key = $dryRun ? "would_create" : "created";
+						$result["totals"][$key]++;
+					}
 				}
+				unset($settlement);
+				foreach ($customerResult["already_settled"] as $period) {
+					$customerResult["settlements"][] = array(
+						"period" => $period,
+						"status" => "already_settled",
+					);
+				}
+				unset($customerResult["already_settled"]);
+				$result["results"][] = $customerResult;
+			} catch (Throwable $error) {
+				$result["status"] = "failed";
+				$failedSettlements = array();
+				try {
+					$preview = $this->previewCustomer($customerId, $asOf);
+					foreach ($preview["settlements"] as $settlement) {
+						$failedSettlements[] = array(
+							"period" => $settlement["period"],
+							"status" => "failed",
+						);
+					}
+				} catch (Throwable $previewError) {
+				}
+				$result["totals"]["failed"] += max(1, count($failedSettlements));
+				$result["errors"][] = array(
+					"customer" => $customerId,
+					"error" => get_class($error),
+					"message" => $error->getMessage(),
+				);
+				$result["results"][] = array(
+					"customer" => $customerId,
+					"status" => "failed",
+					"settlements" => $failedSettlements,
+				);
 			}
 		}
 
 		return $result;
+	}
+
+	public function previewCustomer($customer, DateTimeImmutable $asOf)
+	{
+		$customer = (int) $customer;
+		$existingCustomer = $this->fetchOne(
+			"SELECT id FROM customers WHERE id = :customer AND boss = 0",
+			array("customer" => $customer)
+		);
+		if (!$existingCustomer) {
+			throw new RuntimeException("Interest customer " . $customer . " does not exist or is not eligible.");
+		}
+
+		$currentPeriod = MonthlyInterestPeriod::containing($asOf);
+		$periods = $this->eligibleClosedPeriods($customer, $currentPeriod);
+		$settlements = array();
+		$alreadySettled = array();
+		$virtualCreditCents = 0;
+
+		foreach ($periods as $period) {
+			if ($this->postingExists($customer, $period)) {
+				$alreadySettled[] = $period->key();
+				continue;
+			}
+			$calculation = $this->calculatePeriod($customer, $period, $virtualCreditCents);
+			$settlements[] = array(
+				"posting" => null,
+				"period" => $period->key(),
+				"balance_basis" => $calculation["balance"],
+				"rate" => $calculation["rate"],
+				"amount" => $calculation["amount"],
+				"effective_at" => $calculation["cutoff"],
+				"transaction" => null,
+				"reward_event" => null,
+			);
+			if ($calculation["amount_cents"] > 0) {
+				$virtualCreditCents += $calculation["amount_cents"];
+			}
+		}
+
+		return array(
+			"customer" => $customer,
+			"status" => "ok",
+			"settlements" => $settlements,
+			"already_settled" => $alreadySettled,
+		);
+	}
+
+	private function postingExists($customer, MonthlyInterestPeriod $period)
+	{
+		return $this->fetchOne(
+			"SELECT id
+			FROM monthly_interest_postings
+			WHERE customer = :customer
+			AND period_start = :period_start",
+			array(
+				"customer" => $customer,
+				"period_start" => $period->key() . "-01",
+			)
+		) !== null;
 	}
 
 	public function processCustomer($customer, DateTimeImmutable $asOf)
@@ -79,18 +191,10 @@ final class MonthlyInterestProcessor
 
 			$periods = $this->eligibleClosedPeriods($customer, $currentPeriod);
 			$settlements = array();
+			$alreadySettled = array();
 			foreach ($periods as $period) {
-				$existing = $this->fetchOne(
-					"SELECT id
-					FROM monthly_interest_postings
-					WHERE customer = :customer
-					AND period_start = :period_start",
-					array(
-						"customer" => $customer,
-						"period_start" => $period->key() . "-01",
-					)
-				);
-				if ($existing) {
+				if ($this->postingExists($customer, $period)) {
+					$alreadySettled[] = $period->key();
 					continue;
 				}
 
@@ -100,7 +204,9 @@ final class MonthlyInterestProcessor
 			$this->db->commit();
 			return array(
 				"customer" => $customer,
+				"status" => "ok",
 				"settlements" => $settlements,
+				"already_settled" => $alreadySettled,
 			);
 		} catch (Throwable $error) {
 			if ($this->db->inTransaction()) {
@@ -146,36 +252,13 @@ final class MonthlyInterestProcessor
 
 	private function settlePeriod($customer, MonthlyInterestPeriod $period)
 	{
-		$rateRow = $this->fetchOne(
-			"SELECT rate
-			FROM monthly_interest_rates
-			WHERE effective_period <= :period_start
-			ORDER BY effective_period DESC
-			LIMIT 1",
-			array("period_start" => $period->key() . "-01")
-		);
-		if (!$rateRow) {
-			throw new RuntimeException("No monthly interest rate applies to " . $period->key() . ".");
-		}
-
-		$cutoff = $period->cutoffUtc()->format("Y-m-d H:i:s");
-		$balanceRow = $this->fetchOne(
-			"SELECT COALESCE(SUM(amount), 0.00) AS balance
-			FROM transactions
-			WHERE customer = :customer
-			AND approved = 1
-			AND undone = 0
-			AND datetime < :cutoff",
-			array(
-				"customer" => $customer,
-				"cutoff" => $cutoff,
-			)
-		);
-		$balanceCents = MonthlyInterestMoney::toCents($balanceRow["balance"]);
-		$rate = MonthlyInterestMoney::normalizedRate($rateRow["rate"]);
-		$amountCents = MonthlyInterestMoney::interestCents($balanceCents, $rate);
-		$balance = MonthlyInterestMoney::fromCents($balanceCents);
-		$amount = MonthlyInterestMoney::fromCents($amountCents);
+		$calculation = $this->calculatePeriod($customer, $period);
+		$cutoff = $calculation["cutoff"];
+		$balanceCents = $calculation["balance_cents"];
+		$amountCents = $calculation["amount_cents"];
+		$balance = $calculation["balance"];
+		$rate = $calculation["rate"];
+		$amount = $calculation["amount"];
 
 		$this->execute(
 			"INSERT INTO monthly_interest_postings (
@@ -193,7 +276,11 @@ final class MonthlyInterestProcessor
 			)
 		);
 		$posting = (int) $this->db->lastInsertId();
-		$this->notify("after_posting", array("posting" => $posting, "period" => $period->key()));
+		$this->notify("after_posting", array(
+			"customer" => $customer,
+			"posting" => $posting,
+			"period" => $period->key(),
+		));
 
 		$transaction = null;
 		$rewardEvent = null;
@@ -214,7 +301,11 @@ final class MonthlyInterestProcessor
 			);
 			$transaction = (int) $this->db->lastInsertId();
 			$this->recalculateBalances($customer);
-			$this->notify("after_transaction", array("transaction" => $transaction, "period" => $period->key()));
+			$this->notify("after_transaction", array(
+				"customer" => $customer,
+				"transaction" => $transaction,
+				"period" => $period->key(),
+			));
 
 			$balanceAfter = MonthlyInterestMoney::fromCents($balanceCents + $amountCents);
 			$this->execute(
@@ -241,7 +332,11 @@ final class MonthlyInterestProcessor
 				)
 			);
 			$rewardEvent = (int) $this->db->lastInsertId();
-			$this->notify("after_reward", array("reward_event" => $rewardEvent, "period" => $period->key()));
+			$this->notify("after_reward", array(
+				"customer" => $customer,
+				"reward_event" => $rewardEvent,
+				"period" => $period->key(),
+			));
 
 			$this->execute(
 				"UPDATE monthly_interest_postings
@@ -265,6 +360,49 @@ final class MonthlyInterestProcessor
 			"effective_at" => $cutoff,
 			"transaction" => $transaction,
 			"reward_event" => $rewardEvent,
+		);
+	}
+
+	private function calculatePeriod($customer, MonthlyInterestPeriod $period, $virtualCreditCents = 0)
+	{
+		$rateRow = $this->fetchOne(
+			"SELECT rate
+			FROM monthly_interest_rates
+			WHERE effective_period <= :period_start
+			ORDER BY effective_period DESC
+			LIMIT 1",
+			array("period_start" => $period->key() . "-01")
+		);
+		if (!$rateRow) {
+			throw new RuntimeException("No monthly interest rate applies to " . $period->key() . ".");
+		}
+
+		$cutoff = $period->cutoffUtc()->format("Y-m-d H:i:s");
+		$balanceRow = $this->fetchOne(
+			"SELECT COALESCE(SUM(amount), 0.00) AS balance
+			FROM transactions
+			WHERE customer = :customer
+			AND approved = 1
+			AND undone = 0
+			AND datetime < :cutoff",
+			array(
+				"customer" => $customer,
+				"cutoff" => $cutoff,
+			)
+		);
+		$balanceCents = MonthlyInterestMoney::toCents($balanceRow["balance"]) + (int) $virtualCreditCents;
+		$rate = MonthlyInterestMoney::normalizedRate($rateRow["rate"]);
+		$amountCents = MonthlyInterestMoney::interestCents($balanceCents, $rate);
+		$balance = MonthlyInterestMoney::fromCents($balanceCents);
+		$amount = MonthlyInterestMoney::fromCents($amountCents);
+
+		return array(
+			"balance_cents" => $balanceCents,
+			"amount_cents" => $amountCents,
+			"balance" => $balance,
+			"rate" => $rate,
+			"amount" => $amount,
+			"cutoff" => $cutoff,
 		);
 	}
 

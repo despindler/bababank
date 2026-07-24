@@ -280,15 +280,21 @@ Run the idempotent posting processor from the repository root:
 npm run interest:process
 ```
 
-It settles every eligible closed month oldest first. Each customer is locked and processed transactionally. A non-zero settlement creates one `monthly_interest` transaction and one period-specific reward chest; zero or negative balance periods create only the auditable posting row.
+Schedule this command at least hourly. It settles every eligible closed month oldest first, using `Europe/Zurich` itself rather than relying on the scheduler timezone. Each customer is locked and processed transactionally. A non-zero settlement creates one `monthly_interest` transaction and one period-specific reward chest; zero or negative balance periods create only the auditable posting row.
 
-For controlled recovery or deterministic verification, an explicit instant and customer can be supplied:
+Preview due work without changing persistent state:
 
 ```powershell
-php tools/post-monthly-interest.php --as-of=2026-11-01T00:00:00+01:00 --customer=123
+npm run interest:process -- --dry-run
 ```
 
-Customer KPI and reward reads never post interest. Production scheduling and monitoring are added in the next operational milestone; until then this command is the only posting entry point.
+For controlled recovery, limit the same command to one customer:
+
+```powershell
+php tools/post-monthly-interest.php --customer=123
+```
+
+Customer KPI and reward reads never post interest. There is no HTTP maintenance endpoint. The command emits structured JSON totals, continues after a customer-specific rollback, exits non-zero when periods remain failed, and suppresses overlapping invocations with a database advisory lock. See [Monthly Interest Operations](docs/monthly-interest-operations.md) for the scheduler contract, exit codes, dry-run behavior, and recovery runbook.
 
 ## Browser Testing
 
@@ -351,7 +357,7 @@ Recent checks were run against `.env.test` with the PHP built-in server.
 - HTTP smoke checks returned 200 for `/`, `/customer/`, `/boss/`, `/styles.css`, and `/app.js`.
 - Password login, session cookies, customer KPI/transaction APIs, boss login, boss customer listing, and boss transaction listing were verified with temporary test users and then cleaned up.
 - `npm run test:unit` passed 19 deterministic monthly-interest domain tests.
-- `npm run test:db` passed 16 real-MySQL checks, including schema constraints, exact cutoff balance selection, three-month compounding, per-period rates and chests, zero settlements, archive gaps, rollback, concurrent processing, idempotency, and protected system transactions.
+- `npm run test:db` passed 21 real-MySQL checks, including schema constraints, exact cutoff balance selection, three-month compounding, per-period rates and chests, zero settlements, archive gaps, rollback, concurrent processing, idempotency, dry-run, scheduler boundaries, customer failure continuation, structured CLI failures, advisory locking, and protected system transactions.
 - `npm run test:migration` passed 7 migration checks, including cent-preserving conversion, explicit August 2026 cutover, rate and eligibility initialization, staged legacy-state retention, and final legacy-state removal.
 - `npm test` passed 40 Playwright checks across desktop Chromium and mobile Chrome, including confirmation that customer reads no longer trigger interest posting.
 - A manual Playwright visual pass verified the boss Banking, Users, and Rewards views on desktop and the Rewards view on mobile.

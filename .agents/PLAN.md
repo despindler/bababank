@@ -22,7 +22,11 @@ Primary guidance: Read `.agents/CODEX.md` before starting or resuming work.
   - Added the atomic, customer-locked processor and CLI entry point, chronological catch-up with compounding, period-specific transactions/chests, zero settlements, fixed-cent running balances, and protected system transactions.
   - Removed all runtime lazy-posting paths and added the ordered migration that deletes obsolete `monthly_interest_period` state.
   - Verification: 19 unit tests, 16 real-MySQL schema/processor tests, 7 migration tests, and the browser suite passed; concurrent workers produced one payment.
-- Next milestone: Milestone 4 — Automatic CLI Execution and Recovery.
+- Milestone 4: Completed on 2026-07-24.
+  - Hardened the shared CLI with an hourly scheduler contract, database advisory lock, dry-run simulation, customer-scoped recovery, structured period totals/errors, and non-zero failure exits.
+  - Restricted injected `--as-of` values to test environments and documented the production recovery runbook without adding a public maintenance endpoint or changing an external scheduler.
+  - Verification: 21 real-MySQL tests cover pre/post month close, retry, three-month dry-run compounding, zero persistent dry-run changes, per-customer failure continuation, non-zero structured CLI failures, production clock guard, and overlapping command suppression.
+- Next milestone: Milestone 5 — Customer API and UI Projection.
 
 ## 1. Objective
 
@@ -322,7 +326,7 @@ Implement one reusable processor that settles all due periods correctly and safe
 - Concurrency produces exactly one financial result per customer and period.
 - There is no remaining executable path that posts legacy lazy monthly interest.
 
-## 10. Milestone 4 — Automatic CLI Execution and Recovery
+## 10. Milestone 4 — Automatic CLI Execution and Recovery (Completed 2026-07-24)
 
 ### Goal
 

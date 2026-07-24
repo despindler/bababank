@@ -148,9 +148,9 @@ function registerMonthlyInterestProcessorTests(TestRunner $runner)
 				$processor = new MonthlyInterestProcessor(getDB());
 				$result = $processor->processDue(monthlyInterestTestAsOf("2026-09-15 12:00:00"));
 				$test->assertSame(2, $result["customers"]);
-				$test->assertSame(2, $result["settled"]);
-				$test->assertSame(2, $result["zero_settlements"]);
-				$test->assertSame(0, $result["transactions"]);
+				$test->assertSame(2, $result["totals"]["zero_settled"]);
+				$test->assertSame(0, $result["totals"]["created"]);
+				$test->assertSame(0, $result["totals"]["failed"]);
 
 				$postings = dbFetchAll(
 					"SELECT customer, amount, transaction_id, reward_event_id

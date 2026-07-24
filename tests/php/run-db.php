@@ -6,10 +6,12 @@ require_once __DIR__ . "/TestRunner.php";
 require_once __DIR__ . "/../../site/backend/database.php";
 require_once __DIR__ . "/MonthlyInterestSchemaTest.php";
 require_once __DIR__ . "/MonthlyInterestProcessorTest.php";
+require_once __DIR__ . "/MonthlyInterestCommandTest.php";
 
 $runner = new TestRunner();
 registerMonthlyInterestSchemaTests($runner);
 registerMonthlyInterestProcessorTests($runner);
+registerMonthlyInterestCommandTests($runner);
 exit($runner->finish());
 
 ?>
