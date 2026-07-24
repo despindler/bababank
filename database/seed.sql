@@ -221,7 +221,7 @@ WHERE c.boss = 0
 GROUP BY c.id;
 
 INSERT INTO reward_config (`config_key`, `config_value`, `value_type`, `label`, `description`) VALUES
-('monthly_interest_rate', '0.0008', 'decimal', 'Monatszins', 'Zins, der einmal pro Monat beim Login gutgeschrieben wird.'),
+('monthly_interest_rate', '0.0008', 'decimal', 'Monatszins', 'Monatszins auf dem Kontostand am Monatsende; Gutschrift am ersten Tag des Folgemonats.'),
 ('savings_milestone_reward_rate', '0.0008', 'decimal', 'Spar-Level Zins', 'Einmaliger Zins beim Ueberschreiten eines Spar-Levels.'),
 ('input_lead_reward_rate', '0.0008', 'decimal', 'Ein/Aus Zins', 'Einmaliger Zins, wenn Einzahlungen Auszahlungen von unten ueberholen.'),
 ('savings_milestone_step', '100', 'decimal', 'Spar-Level Schritt', 'Kontostand-Schritt fuer Spar-Level Belohnungen.'),
@@ -229,6 +229,15 @@ INSERT INTO reward_config (`config_key`, `config_value`, `value_type`, `label`, 
 ('reward_monthly_interest_enabled', 'true', 'boolean', 'Monatszins aktiv', 'Monatliche Zinsen und Kisten aktivieren.'),
 ('reward_savings_milestone_enabled', 'true', 'boolean', 'Spar-Level aktiv', 'Spar-Level Belohnungen aktivieren.'),
 ('reward_input_lead_enabled', 'true', 'boolean', 'Ein/Aus aktiv', 'Ein/Aus Belohnungen aktivieren.');
+
+INSERT INTO monthly_interest_rates (`effective_period`, `rate`) VALUES
+('2026-08-01', '0.00080000');
+
+INSERT INTO customer_interest_eligibility (`customer`, `start_period`)
+SELECT c.id, '2026-08-01'
+FROM customers c
+WHERE c.boss = 0
+AND c.deleted_at IS NULL;
 
 ALTER TABLE `customers` AUTO_INCREMENT = 7;
 ALTER TABLE `leases` AUTO_INCREMENT = 1;

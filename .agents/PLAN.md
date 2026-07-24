@@ -1,17 +1,24 @@
 # Monthly Interest Posting and Customer Projection Plan
 
-Status: Ready for implementation  
-Last updated: 2026-07-24  
+Status: In implementation
+Last updated: 2026-07-24
 Primary guidance: Read `.agents/CODEX.md` before starting or resuming work.
 
 ## Progress
 
-- Milestone 0: Deferred at the user's direction; test-database provisioning remains required before database milestones.
+- Milestone 0: Completed as supporting work in Milestone 2 on 2026-07-24.
+  - Added a guarded `.env.test` database reset, a sanitized configuration-only test seed, and database/migration test commands.
+  - Verification: the reset created `bank_test` with 9 tables, 0 customers, and 8 configuration rows; the full existing Playwright suite passed.
 - Milestone 1: Completed on 2026-07-24.
   - Added the pure monthly-interest domain model, explicit Zurich period handling, fixed/system clocks, exact cent calculations, historical rate selection, and projection generation.
   - Added a zero-dependency PHP unit runner and `npm run test:unit`.
   - Verification: PHP syntax passed; 19 unit tests passed with `E_ALL`; `git diff --check` passed.
-- Next milestone: Milestone 2 — Schema, Rate History, Eligibility, and Cutover.
+- Milestone 2: Completed on 2026-07-24.
+  - Added fixed-decimal money storage, effective-dated global rates, customer eligibility intervals, and a unique customer-period settlement ledger to fresh schema and an ordered migration.
+  - Set August 2026 as the explicit first accrual period, with the first posting effective September 1, 2026.
+  - Added scheduled-next-period rate updates and archive/restore eligibility handling.
+  - Verification: 19 unit tests, 8 fresh-schema database tests, 6 migration tests, and 40 Playwright tests passed against local MySQL.
+- Next milestone: Milestone 3 — Atomic Posting and Catch-Up Processor.
 
 ## 1. Objective
 
@@ -207,7 +214,7 @@ Extract deterministic financial and calendar logic that can be unit tested witho
 - Posting and projection call the same amount calculator.
 - Date calculations contain no implicit PHP or database server timezone dependency.
 
-## 8. Milestone 2 — Schema, Rate History, Eligibility, and Cutover
+## 8. Milestone 2 — Schema, Rate History, Eligibility, and Cutover (Completed 2026-07-24)
 
 ### Goal
 

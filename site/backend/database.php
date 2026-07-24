@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . "/../config.php";
+require_once __DIR__ . "/monthly_interest.php";
 
 function getDB()
 {
@@ -16,6 +17,7 @@ function getDB()
 		PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
 		PDO::ATTR_EMULATE_PREPARES => false,
 	));
+	$db->exec("SET time_zone = '+00:00'");
 
 	return $db;
 }
@@ -483,40 +485,60 @@ function dbUpdateCustomer($id, $realm, $customer)
 	return dbManagedCustomerById($id, $realm);
 }
 
-function dbSoftDeleteCustomer($id, $realm)
+function dbSoftDeleteCustomer($id, $realm, ?DateTimeImmutable $asOf = null)
 {
-	$stmt = dbExecute(
-		"UPDATE customers
-		SET deleted_at = CURRENT_TIMESTAMP
-		WHERE id = :id
-		AND realm = :realm
-		AND boss = 0
-		AND deleted_at IS NULL",
-		array(
-			"id" => (int) $id,
-			"realm" => (int) $realm,
-		)
-	);
-
-	return $stmt->rowCount() > 0;
+	$db = getDB();
+	$db->beginTransaction();
+	try {
+		$stmt = dbExecute(
+			"UPDATE customers
+			SET deleted_at = CURRENT_TIMESTAMP
+			WHERE id = :id
+			AND realm = :realm
+			AND boss = 0
+			AND deleted_at IS NULL",
+			array(
+				"id" => (int) $id,
+				"realm" => (int) $realm,
+			)
+		);
+		if ($stmt->rowCount() > 0) {
+			dbCloseInterestEligibility((int) $id, dbCurrentInterestPeriodStart($asOf));
+		}
+		$db->commit();
+		return $stmt->rowCount() > 0;
+	} catch (Exception $e) {
+		$db->rollBack();
+		throw $e;
+	}
 }
 
-function dbRestoreCustomer($id, $realm)
+function dbRestoreCustomer($id, $realm, ?DateTimeImmutable $asOf = null)
 {
-	$stmt = dbExecute(
-		"UPDATE customers
-		SET deleted_at = NULL
-		WHERE id = :id
-		AND realm = :realm
-		AND boss = 0
-		AND deleted_at IS NOT NULL",
-		array(
-			"id" => (int) $id,
-			"realm" => (int) $realm,
-		)
-	);
-
-	return $stmt->rowCount() > 0;
+	$db = getDB();
+	$db->beginTransaction();
+	try {
+		$stmt = dbExecute(
+			"UPDATE customers
+			SET deleted_at = NULL
+			WHERE id = :id
+			AND realm = :realm
+			AND boss = 0
+			AND deleted_at IS NOT NULL",
+			array(
+				"id" => (int) $id,
+				"realm" => (int) $realm,
+			)
+		);
+		if ($stmt->rowCount() > 0) {
+			dbOpenInterestEligibility((int) $id, dbCurrentInterestPeriodStart($asOf));
+		}
+		$db->commit();
+		return $stmt->rowCount() > 0;
+	} catch (Exception $e) {
+		$db->rollBack();
+		throw $e;
+	}
 }
 
 function dbLinkGoogleIdentity($id, $googleSub, $email, $displayName)
@@ -668,19 +690,170 @@ function dbRewardConfigAll()
 
 function dbUpdateRewardConfig($configs)
 {
-	foreach ($configs as $key => $value) {
-		dbExecute(
-			"UPDATE reward_config
-			SET config_value = :config_value
-			WHERE config_key = :config_key",
-			array(
-				"config_key" => $key,
-				"config_value" => (string) $value,
-			)
-		);
+	$db = getDB();
+	$db->beginTransaction();
+	try {
+		foreach ($configs as $key => $value) {
+			dbExecute(
+				"UPDATE reward_config
+				SET config_value = :config_value
+				WHERE config_key = :config_key",
+				array(
+					"config_key" => $key,
+					"config_value" => (string) $value,
+				)
+			);
+		}
+
+		if (array_key_exists("monthly_interest_rate", $configs)) {
+			$nextPeriod = MonthlyInterestPeriod::containing(new DateTimeImmutable("now"))->next()->key() . "-01";
+			dbScheduleMonthlyInterestRate($nextPeriod, $configs["monthly_interest_rate"]);
+		}
+
+		$result = dbRewardConfigAll();
+		$db->commit();
+		return $result;
+	} catch (Exception $e) {
+		$db->rollBack();
+		throw $e;
+	}
+}
+
+function dbCurrentInterestPeriodStart(?DateTimeImmutable $asOf = null)
+{
+	$asOf = $asOf ?: new DateTimeImmutable("now");
+	return MonthlyInterestPeriod::containing($asOf)->key() . "-01";
+}
+
+function dbFirstConfiguredInterestPeriod()
+{
+	$row = dbFetchOne("SELECT MIN(effective_period) AS first_period FROM monthly_interest_rates");
+	return $row && $row["first_period"] !== null ? $row["first_period"] : null;
+}
+
+function dbNormalizeEligibilityStart($startPeriod)
+{
+	$period = MonthlyInterestPeriod::fromKey(substr((string) $startPeriod, 0, 7))->key() . "-01";
+	$firstConfigured = dbFirstConfiguredInterestPeriod();
+	if ($firstConfigured !== null && strcmp($period, $firstConfigured) < 0) {
+		return $firstConfigured;
+	}
+	return $period;
+}
+
+function dbOpenInterestEligibility($customer, $startPeriod)
+{
+	$customer = (int) $customer;
+	$startPeriod = dbNormalizeEligibilityStart($startPeriod);
+	$open = dbFetchOne(
+		"SELECT id
+		FROM customer_interest_eligibility
+		WHERE customer = :customer
+		AND end_period IS NULL
+		ORDER BY start_period DESC
+		LIMIT 1",
+		array("customer" => $customer)
+	);
+	if ($open) {
+		return (int) $open["id"];
 	}
 
-	return dbRewardConfigAll();
+	dbExecute(
+		"INSERT INTO customer_interest_eligibility (customer, start_period, end_period)
+		VALUES (:customer, :start_period, NULL)
+		ON DUPLICATE KEY UPDATE end_period = NULL",
+		array(
+			"customer" => $customer,
+			"start_period" => $startPeriod,
+		)
+	);
+
+	$row = dbFetchOne(
+		"SELECT id
+		FROM customer_interest_eligibility
+		WHERE customer = :customer
+		AND start_period = :start_period",
+		array(
+			"customer" => $customer,
+			"start_period" => $startPeriod,
+		)
+	);
+	return $row ? (int) $row["id"] : null;
+}
+
+function dbCloseInterestEligibility($customer, $endPeriod)
+{
+	$customer = (int) $customer;
+	$endPeriod = MonthlyInterestPeriod::fromKey(substr((string) $endPeriod, 0, 7))->key() . "-01";
+	$open = dbFetchOne(
+		"SELECT id, start_period
+		FROM customer_interest_eligibility
+		WHERE customer = :customer
+		AND end_period IS NULL
+		ORDER BY start_period DESC
+		LIMIT 1",
+		array("customer" => $customer)
+	);
+	if (!$open) {
+		return false;
+	}
+
+	if (strcmp($open["start_period"], $endPeriod) >= 0) {
+		dbExecute(
+			"DELETE FROM customer_interest_eligibility WHERE id = :id",
+			array("id" => (int) $open["id"])
+		);
+		return true;
+	}
+
+	dbExecute(
+		"UPDATE customer_interest_eligibility
+		SET end_period = :end_period
+		WHERE id = :id",
+		array(
+			"id" => (int) $open["id"],
+			"end_period" => $endPeriod,
+		)
+	);
+	return true;
+}
+
+function dbScheduleMonthlyInterestRate($effectivePeriod, $rate)
+{
+	$effectivePeriod = MonthlyInterestPeriod::fromKey(substr((string) $effectivePeriod, 0, 7))->key() . "-01";
+	$rate = MonthlyInterestMoney::normalizedRate($rate);
+	dbExecute(
+		"INSERT INTO monthly_interest_rates (effective_period, rate)
+		VALUES (:effective_period, :rate)
+		ON DUPLICATE KEY UPDATE rate = VALUES(rate)",
+		array(
+			"effective_period" => $effectivePeriod,
+			"rate" => $rate,
+		)
+	);
+	return dbMonthlyInterestRateForPeriod(substr($effectivePeriod, 0, 7));
+}
+
+function dbMonthlyInterestRates()
+{
+	return dbFetchAll(
+		"SELECT effective_period, rate, created_at
+		FROM monthly_interest_rates
+		ORDER BY effective_period"
+	);
+}
+
+function dbMonthlyInterestRateForPeriod($period)
+{
+	$period = MonthlyInterestPeriod::fromKey(substr((string) $period, 0, 7))->key() . "-01";
+	return dbFetchOne(
+		"SELECT effective_period, rate
+		FROM monthly_interest_rates
+		WHERE effective_period <= :period
+		ORDER BY effective_period DESC
+		LIMIT 1",
+		array("period" => $period)
+	);
 }
 
 function dbRewardOverview($realm)

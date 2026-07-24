@@ -16,6 +16,7 @@ The app is a plain PHP and plain JavaScript site:
 - `site/styles.css` is the shared visual system.
 - `site/backend/backend.php` defines the JSON API routes.
 - `site/backend/database.php` contains the PDO-based MySQL/MariaDB access functions.
+- `site/backend/monthly_interest.php` contains deterministic monthly-interest money, period, rate, and projection rules.
 - `site/backend/google_auth.php` verifies Google Identity Services ID tokens server-side.
 - `site/backend/rewards.php` contains the configurable reward and interest logic.
 - `site/backend/flight/` is a vendored copy of the Flight PHP micro-framework.
@@ -84,6 +85,12 @@ Tables:
   - links interest rewards to the transaction that created money
 - `reward_config`
   - editable reward configuration, including rates, threshold steps, and enable/disable switches
+- `monthly_interest_rates`
+  - effective-dated global monthly-interest rates, keyed by the first day of the interest period
+- `customer_interest_eligibility`
+  - per-customer accrual intervals; the end date is exclusive so archived months cannot be back-paid after restoration
+- `monthly_interest_postings`
+  - one auditable settlement per customer and calendar month, with the balance basis, applied rate, amount, effective instant, and optional transaction/reward links
 
 The schema has foreign keys from `leases.customer` and `transactions.customer` to `customers.id`, both with cascade delete/update.
 
@@ -109,8 +116,16 @@ Current migrations:
 - `database/migrations/20260603_002_add_boss_management.sql`
   - adds `customers.deleted_at` for soft-deleting users
   - creates and seeds `reward_config`
+- `database/migrations/20260724_001_add_monthly_interest_postings.sql`
+  - changes stored money columns to fixed two-decimal values
+  - creates monthly-interest rate history, customer eligibility intervals, and the posting ledger
+  - explicitly sets August 2026 as the first accrual period, with the first posting due on September 1, 2026
+  - initializes the August rate from the existing global reward configuration
+  - retains the legacy lazy-period state only for the staged rollout; the posting-engine milestone removes it when the new processor takes over
 
 `database/seed.sql` intentionally omits all rows from `leases`; sessions are runtime state and should not be restored from the historical live dump. It preserves live customers, password hashes, transaction history, balances, `approved`, and `undone` flags.
+
+`database/test-seed.sql` is the sanitized test seed. It contains required configuration and the August 2026 global rate, but no customer identities, credentials, transactions, or sessions.
 
 ## Backend API
 
@@ -224,7 +239,7 @@ Optional variables:
 - `GOOGLE_JWKS_URL`
   - Google public key endpoint; defaults to `https://www.googleapis.com/oauth2/v3/certs`
 - `MONTHLY_INTEREST_RATE`
-  - monthly lazy interest rate as a decimal multiplier; `0.0008` means 0.08%
+  - fallback monthly interest rate as a decimal multiplier; `0.0008` means 0.08%
 - `SAVINGS_MILESTONE_REWARD_RATE`
   - one-time interest rate for crossing 100, 200, 300, ... from below
 - `INPUT_LEAD_REWARD_RATE`
@@ -257,10 +272,20 @@ Then open:
 
 Playwright is configured for frontend smoke testing against the PHP app. The tests use `.env.test`, create temporary customer and boss users in a disposable test realm, log in through the UI, capture screenshots, and clean up the temporary rows.
 
-Pure monthly-interest domain rules can be verified without a database or browser:
+Reset the configured test database before database or browser tests:
+
+```powershell
+npm run db:test:reset
+```
+
+The reset command loads `.env.test`, creates the configured database when needed, and refuses database names that are not clearly test-scoped. It applies `database/schema.sql` and the sanitized `database/test-seed.sql`.
+
+Run the pure monthly-interest rules and real-database schema checks:
 
 ```powershell
 npm run test:unit
+npm run test:db
+npm run test:migration
 ```
 
 Install dependencies and Chromium when needed:
@@ -303,6 +328,9 @@ Recent checks were run against `.env.test` with the PHP built-in server.
 - `node --check site/app.js` passed.
 - HTTP smoke checks returned 200 for `/`, `/customer/`, `/boss/`, `/styles.css`, and `/app.js`.
 - Password login, session cookies, customer KPI/transaction APIs, boss login, boss customer listing, and boss transaction listing were verified with temporary test users and then cleaned up.
+- `npm run test:unit` passed 19 deterministic monthly-interest domain tests.
+- `npm run test:db` passed 8 real-MySQL schema, fixed-decimal, uniqueness, UTC-session, rate-history, and archive/restore eligibility checks.
+- `npm run test:migration` passed 6 migration checks, including cent-preserving conversion, explicit August 2026 cutover, rate initialization, eligibility initialization, and staged legacy-state retention.
 - `npm test` passed 40 Playwright checks across desktop Chromium and mobile Chrome, including banking KPI behavior, sortable transaction tables, boss management views, user archiving/restoring, reward configuration, reward events, daily reward queues, lazy monthly interest, and smoke screenshots.
 - A manual Playwright visual pass verified the boss Banking, Users, and Rewards views on desktop and the Rewards view on mobile.
 - Google token verification still requires a real Google ID token and PHP OpenSSL. The server-side Google auth path is present, but end-to-end Google sign-in should be rechecked in a browser after configuring a valid Google client.

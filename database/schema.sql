@@ -35,8 +35,8 @@ CREATE TABLE `transactions` (
   `id` int NOT NULL AUTO_INCREMENT,
   `customer` int NOT NULL,
   `datetime` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `amount` double NOT NULL,
-  `balance` double NOT NULL,
+  `amount` decimal(15,2) NOT NULL,
+  `balance` decimal(15,2) NOT NULL,
   `kind` varchar(32) NOT NULL DEFAULT 'manual',
   `note` varchar(255) DEFAULT NULL,
   `approved` tinyint NOT NULL DEFAULT '1',
@@ -63,9 +63,9 @@ CREATE TABLE `reward_events` (
   `description` varchar(255) NOT NULL,
   `trigger_value` varchar(64) DEFAULT NULL,
   `interest_rate` decimal(12,8) DEFAULT NULL,
-  `amount` double NOT NULL DEFAULT '0',
-  `balance_before` double NOT NULL DEFAULT '0',
-  `balance_after` double NOT NULL DEFAULT '0',
+  `amount` decimal(15,2) NOT NULL DEFAULT '0.00',
+  `balance_before` decimal(15,2) NOT NULL DEFAULT '0.00',
+  `balance_after` decimal(15,2) NOT NULL DEFAULT '0.00',
   `transaction_id` int DEFAULT NULL,
   `earned_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `opened_at` timestamp NULL DEFAULT NULL,
@@ -84,6 +84,51 @@ CREATE TABLE `reward_config` (
   `description` varchar(255) NOT NULL,
   `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`config_key`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3;
+CREATE TABLE `monthly_interest_rates` (
+  `effective_period` date NOT NULL,
+  `rate` decimal(12,8) NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`effective_period`),
+  CONSTRAINT `monthly_interest_rates_period_first_day` CHECK (DAYOFMONTH(`effective_period`) = 1),
+  CONSTRAINT `monthly_interest_rates_nonnegative` CHECK (`rate` >= 0)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3;
+CREATE TABLE `customer_interest_eligibility` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `customer` int NOT NULL,
+  `start_period` date NOT NULL,
+  `end_period` date DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `customer_interest_eligibility_start` (`customer`, `start_period`),
+  KEY `customer_interest_eligibility_periods` (`customer`, `start_period`, `end_period`),
+  CONSTRAINT `customer_interest_eligibility_fk_customers` FOREIGN KEY (`customer`) REFERENCES `customers` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `customer_interest_eligibility_start_first_day` CHECK (DAYOFMONTH(`start_period`) = 1),
+  CONSTRAINT `customer_interest_eligibility_end_first_day` CHECK (`end_period` IS NULL OR DAYOFMONTH(`end_period`) = 1),
+  CONSTRAINT `customer_interest_eligibility_valid_range` CHECK (`end_period` IS NULL OR `end_period` > `start_period`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3;
+CREATE TABLE `monthly_interest_postings` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `customer` int NOT NULL,
+  `period_start` date NOT NULL,
+  `balance_basis` decimal(15,2) NOT NULL,
+  `interest_rate` decimal(12,8) NOT NULL,
+  `amount` decimal(15,2) NOT NULL,
+  `effective_at` timestamp NOT NULL,
+  `processed_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `transaction_id` int DEFAULT NULL,
+  `reward_event_id` int DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `monthly_interest_postings_customer_period` (`customer`, `period_start`),
+  UNIQUE KEY `monthly_interest_postings_transaction` (`transaction_id`),
+  UNIQUE KEY `monthly_interest_postings_reward_event` (`reward_event_id`),
+  KEY `monthly_interest_postings_effective_at` (`effective_at`),
+  CONSTRAINT `monthly_interest_postings_fk_customers` FOREIGN KEY (`customer`) REFERENCES `customers` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `monthly_interest_postings_fk_transactions` FOREIGN KEY (`transaction_id`) REFERENCES `transactions` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT `monthly_interest_postings_fk_reward_events` FOREIGN KEY (`reward_event_id`) REFERENCES `reward_events` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT `monthly_interest_postings_period_first_day` CHECK (DAYOFMONTH(`period_start`) = 1),
+  CONSTRAINT `monthly_interest_postings_nonnegative_rate` CHECK (`interest_rate` >= 0),
+  CONSTRAINT `monthly_interest_postings_nonnegative_amount` CHECK (`amount` >= 0)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3;
 SET FOREIGN_KEY_CHECKS = 1;
 

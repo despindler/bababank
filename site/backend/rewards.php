@@ -119,6 +119,7 @@ function rewardsInitializeCustomer($customer)
 {
 	dbSetRewardState((int) $customer, "savings_level", "0");
 	dbSetRewardState((int) $customer, "input_lead_active", "0");
+	dbOpenInterestEligibility((int) $customer, dbCurrentInterestPeriodStart());
 }
 
 function rewardsEvaluateAchievementsForCustomer($customer)
